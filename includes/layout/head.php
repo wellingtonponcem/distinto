@@ -45,40 +45,10 @@ $tituloPagina = $tituloPagina ?? APP_NAME;
         body {
             min-height: 100vh;
             margin: 0;
-            background:
-                radial-gradient(circle at 78% 0%, rgba(255,255,255,0.18), transparent 26rem),
-                linear-gradient(180deg, #949494 0, #949494 154px, #050505 154px, #050505 100%);
+            background: #050505;
             color: #111111;
             font-family: 'Outfit', Arial, sans-serif;
             overflow-x: hidden;
-        }
-
-        body::before {
-            content: "DISTINTO";
-            position: fixed;
-            top: 42px;
-            left: min(31vw, 440px);
-            z-index: 0;
-            color: rgba(255,255,255,0.34);
-            font-size: clamp(34px, 5vw, 76px);
-            font-weight: 800;
-            letter-spacing: -0.05em;
-            line-height: 0.92;
-            pointer-events: none;
-        }
-
-        body::after {
-            content: "ERP SaaS";
-            position: fixed;
-            top: 34px;
-            right: 32px;
-            z-index: 0;
-            color: #ffffff;
-            font-size: clamp(44px, 8vw, 102px);
-            font-weight: 800;
-            letter-spacing: -0.06em;
-            line-height: 0.85;
-            pointer-events: none;
         }
 
         #app-wrapper {
@@ -86,23 +56,22 @@ $tituloPagina = $tituloPagina ?? APP_NAME;
             z-index: 1;
             display: flex;
             min-height: 100vh;
-            padding-top: 154px;
             background: transparent;
         }
 
         .sidebar {
-            width: 248px !important;
-            min-height: calc(100vh - 154px) !important;
-            height: calc(100vh - 154px) !important;
-            margin-left: 56px;
+            width: 256px !important;
+            min-height: 100vh !important;
+            height: 100vh !important;
+            margin-left: 0;
             flex-shrink: 0;
             position: sticky;
-            top: 154px;
+            top: 0;
             color: #b8b8b8;
             background: #171717;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 28px 0 0 28px;
-            box-shadow: 0 28px 60px rgba(0,0,0,0.38);
+            border-right: 1px solid rgba(255,255,255,0.08);
+            border-radius: 0;
+            box-shadow: none;
             overflow: hidden;
         }
 
@@ -110,15 +79,15 @@ $tituloPagina = $tituloPagina ?? APP_NAME;
         .content-sheet {
             flex: 1;
             min-width: 0;
-            min-height: calc(100vh - 176px);
-            margin: 0 40px 22px 0;
-            padding: 34px 36px !important;
+            min-height: 100vh;
+            margin: 0;
+            padding: 30px 34px !important;
             overflow-y: auto;
             max-width: none !important;
-            background: #ffffff;
-            border: 1px solid rgba(0,0,0,0.08);
-            border-radius: 0 0 0 28px;
-            box-shadow: 0 28px 60px rgba(0,0,0,0.36);
+            background: #fbfbfb;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
         }
 
         .app-topbar {
@@ -126,8 +95,8 @@ $tituloPagina = $tituloPagina ?? APP_NAME;
             align-items: center;
             justify-content: space-between;
             gap: 18px;
-            margin: -14px -12px 28px;
-            padding: 0 2px 18px;
+            margin: -6px 0 26px;
+            padding: 0 0 18px;
             border-bottom: 1px solid #eeeeee;
         }
 
@@ -170,7 +139,7 @@ $tituloPagina = $tituloPagina ?? APP_NAME;
         .card {
             background: #ffffff;
             border: 1px solid #ececec;
-            border-radius: 15px;
+            border-radius: 12px;
             box-shadow: 0 1px 0 rgba(0,0,0,0.02);
             transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
         }
@@ -372,23 +341,12 @@ $tituloPagina = $tituloPagina ?? APP_NAME;
         ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); border-radius: 999px; }
 
         @media (max-width: 1024px) {
-            body::before,
-            body::after { display: none; }
-
-            body {
-                background: #050505;
-            }
-
-            #app-wrapper {
-                padding-top: 16px;
-            }
-
             .sidebar {
                 width: 92px !important;
-                margin-left: 12px;
-                top: 16px;
-                height: calc(100vh - 32px) !important;
-                min-height: calc(100vh - 32px) !important;
+                margin-left: 0;
+                top: 0;
+                height: 100vh !important;
+                min-height: 100vh !important;
             }
 
             .sidebar .sidebar-copy,
@@ -405,7 +363,6 @@ $tituloPagina = $tituloPagina ?? APP_NAME;
 
             #main-content,
             .content-sheet {
-                margin-right: 12px;
                 padding: 24px 18px !important;
             }
         }
