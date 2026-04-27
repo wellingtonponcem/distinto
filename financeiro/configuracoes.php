@@ -103,14 +103,20 @@ include __DIR__ . '/../includes/layout/head.php';
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
                     <div>
                         <label class="label">Categoria *</label>
-                        <select class="select" x-model="form.categoria" required>
+                        <select class="select" x-model="form.categoria" required
+                            @change="mostrarCampoCustom = form.categoria === '__custom__'; categoriaCustom = '';">
                             <option value="aluguel">Aluguel</option>
                             <option value="contabilidade">Contabilidade</option>
                             <option value="internet">Internet / Tel.</option>
                             <option value="impostos">Impostos</option>
                             <option value="folha">Folha de Pagamento</option>
                             <option value="outros">Outros</option>
+                            <option value="__custom__">+ Nova categoria...</option>
                         </select>
+                        <div x-show="mostrarCampoCustom" style="margin-top:8px;">
+                            <input class="input" x-model="categoriaCustom" placeholder="Digite o nome da categoria"
+                                x-ref="inputCustom" @focus="$el.select()">
+                        </div>
                     </div>
                     <div>
                         <label class="label">Recorrência *</label>
@@ -141,6 +147,8 @@ function custosFixos() {
         salvando: false,
         modalAberto: false,
         form: {},
+        categoriaCustom: '',
+        mostrarCampoCustom: false,
 
         get totalMensal() {
             return this.lista
@@ -163,19 +171,34 @@ function custosFixos() {
         },
 
         abrirModal(item = null) {
+            const categoriasPadrao = ['aluguel','contabilidade','internet','impostos','folha','outros'];
+            const cat = item?.categoria || 'outros';
+            const ehPadrao = categoriasPadrao.includes(cat);
             this.form = item ? { ...item } : { nome: '', categoria: 'outros', recorrencia: 'mensal', valor: '', ativo: '1' };
+            this.categoriaCustom = ehPadrao ? '' : cat;
+            this.mostrarCampoCustom = !ehPadrao;
+            if (!ehPadrao) this.form.categoria = '__custom__';
             this.modalAberto = true;
             this.$nextTick(() => lucide.createIcons());
         },
 
         async salvar() {
             this.salvando = true;
+            // Resolver categoria: custom ou selecionada
+            const payload = { ...this.form };
+            if (this.mostrarCampoCustom) {
+                if (!this.categoriaCustom.trim()) {
+                    toast('Digite o nome da nova categoria', 'aviso');
+                    this.salvando = false; return;
+                }
+                payload.categoria = this.categoriaCustom.trim().toLowerCase();
+            }
             try {
-                const metodo = this.form.id ? 'PUT' : 'POST';
+                const metodo = payload.id ? 'PUT' : 'POST';
                 const r = await fetch('<?= raizUrl('/api/financeiro/custos-fixos.php') ?>', {
                     method: metodo,
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(this.form)
+                    body: JSON.stringify(payload)
                 });
                 if (r.ok) {
                     toast('Custo salvo!', 'sucesso');
@@ -200,7 +223,7 @@ function custosFixos() {
 
         labelCategoria(cat) {
             const map = { aluguel:'Aluguel', contabilidade:'Contabilidade', internet:'Internet/Tel.', impostos:'Impostos', folha:'Folha', outros:'Outros' };
-            return map[cat] || cat;
+            return map[cat] || (cat ? cat.charAt(0).toUpperCase() + cat.slice(1) : '—');
         },
 
         formatarMoeda(val) { return window.formatarMoeda(val); },
