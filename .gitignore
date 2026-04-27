@@ -1,0 +1,10 @@
+# Segredos — nunca versionar
+config/env.php
+
+# Claude Code interno
+.claude/
+
+# Sistema
+Thumbs.db
+.DS_Store
+*.log
