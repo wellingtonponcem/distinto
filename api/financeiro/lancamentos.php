@@ -11,7 +11,6 @@ $metodo = $_SERVER['REQUEST_METHOD'];
 
 switch ($metodo) {
     case 'GET':
-        // Recalcular status atrasado dinamicamente
         $rows = $db->query("
             SELECT *,
               CASE
@@ -28,6 +27,12 @@ switch ($metodo) {
     case 'POST':
         $d = lerCorpo();
         validarLancamento($d);
+
+        // Se marcado como custo fixo, criar/vincular custo_fixo
+        if (!empty($d['e_custo_fixo']) && empty($d['custo_fixo_id'])) {
+            $d['custo_fixo_id'] = criarCustoFixoFromLancamento($db, $d);
+        }
+
         criarLancamento($db, $d);
         responderJson(['ok' => true], 201);
 
@@ -35,19 +40,18 @@ switch ($metodo) {
         $d = lerCorpo();
         if (empty($d['id'])) responderJson(['erro' => 'ID obrigatório'], 422);
         validarLancamento($d);
-        $stmt = $db->prepare('UPDATE lancamentos SET tipo=?,descricao=?,valor=?,categoria=?,cliente_fornecedor=?,vencimento=?,modalidade=?,observacao=? WHERE id=?');
+        $stmt = $db->prepare('UPDATE lancamentos SET tipo=?,descricao=?,valor=?,categoria=?,cliente_fornecedor=?,vencimento=?,modalidade=?,forma_pagamento=?,observacao=? WHERE id=?');
         $stmt->execute([
             $d['tipo'], $d['descricao'], $d['valor'], $d['categoria'] ?? 'outros',
             $d['cliente_fornecedor'] ?? null, $d['vencimento'],
-            $d['modalidade'] ?? 'avista', $d['observacao'] ?? null,
-            $d['id']
+            $d['modalidade'] ?? 'avista', $d['forma_pagamento'] ?? null,
+            $d['observacao'] ?? null, $d['id']
         ]);
         responderJson(['ok' => true]);
 
     case 'DELETE':
         $id = $_GET['id'] ?? '';
         if (!$id) responderJson(['erro' => 'ID obrigatório'], 422);
-        // Excluir parcelas vinculadas
         $db->prepare('DELETE FROM lancamentos WHERE lancamento_pai_id=?')->execute([$id]);
         $db->prepare('DELETE FROM lancamentos WHERE id=?')->execute([$id]);
         responderJson(['ok' => true]);
@@ -62,37 +66,38 @@ function validarLancamento(array $d): void {
     }
 }
 
+function criarCustoFixoFromLancamento(PDO $db, array $d): string {
+    $id  = gerarId();
+    $dia = (int)date('d', strtotime($d['vencimento']));
+    $dia = max(1, min(28, $dia));
+    $stmt = $db->prepare('INSERT INTO custos_fixos (id,nome,valor,categoria,recorrencia,dia_vencimento,forma_pagamento,ativo) VALUES (?,?,?,?,\'mensal\',?,?,1)');
+    $stmt->execute([$id, $d['descricao'], $d['valor'], $d['categoria'] ?? 'outros', $dia, $d['forma_pagamento'] ?? 'pix']);
+    return $id;
+}
+
 function criarLancamento(PDO $db, array $d): void {
     $modalidade = $d['modalidade'] ?? 'avista';
 
     if ($modalidade === 'parcelado') {
-        $total = (int)($d['total_parcelas'] ?? 2);
-        $total = max(2, min(120, $total));
+        $total        = max(2, min(120, (int)($d['total_parcelas'] ?? 2)));
         $valorParcela = round((float)$d['valor'] / $total, 2);
-        $vencBase = new DateTime($d['vencimento']);
-        $paiId = gerarId();
+        $vencBase     = new DateTime($d['vencimento']);
+        $paiId        = gerarId();
 
-        // Primeira parcela (pai)
         inserirLancamento($db, $paiId, $d, $valorParcela, $vencBase->format('Y-m-d'), null, 1, $total);
-
         for ($i = 2; $i <= $total; $i++) {
             $vencBase->modify('+30 days');
             inserirLancamento($db, gerarId(), $d, $valorParcela, $vencBase->format('Y-m-d'), $paiId, $i, $total);
         }
 
     } elseif ($modalidade === 'recorrente') {
-        $freq = $d['frequencia'] ?? 'mensal';
-        $termino = !empty($d['data_termino']) ? new DateTime($d['data_termino']) : null;
-        $limite = (new DateTime())->modify('+12 months');
-        $fim = $termino && $termino < $limite ? $termino : $limite;
-
-        $venc = new DateTime($d['vencimento']);
-        $intervalo = match($freq) {
-            'semanal' => 'P7D',
-            'anual'   => 'P1Y',
-            default   => 'P1M',
-        };
-        $paiId = null;
+        $freq     = $d['frequencia'] ?? 'mensal';
+        $termino  = !empty($d['data_termino']) ? new DateTime($d['data_termino']) : null;
+        $limite   = (new DateTime())->modify('+12 months');
+        $fim      = $termino && $termino < $limite ? $termino : $limite;
+        $venc     = new DateTime($d['vencimento']);
+        $intervalo = match($freq) { 'semanal' => 'P7D', 'anual' => 'P1Y', default => 'P1M' };
+        $paiId    = null;
 
         while ($venc <= $fim) {
             $id = gerarId();
@@ -100,7 +105,6 @@ function criarLancamento(PDO $db, array $d): void {
             if (!$paiId) $paiId = $id;
             $venc->add(new DateInterval($intervalo));
         }
-
     } else {
         inserirLancamento($db, gerarId(), $d, $d['valor'], $d['vencimento']);
     }
@@ -108,8 +112,8 @@ function criarLancamento(PDO $db, array $d): void {
 
 function inserirLancamento(PDO $db, string $id, array $d, float $valor, string $venc, ?string $paiId = null, int $parcelaAtual = 1, ?int $totalParcelas = null): void {
     $stmt = $db->prepare('
-        INSERT INTO lancamentos (id, tipo, descricao, valor, valor_pago, categoria, cliente_fornecedor, vencimento, status, modalidade, total_parcelas, parcela_atual, lancamento_pai_id, frequencia, data_termino, observacao)
-        VALUES (?,?,?,?,0,?,?,?,\'pendente\',?,?,?,?,?,?,?)
+        INSERT INTO lancamentos (id,tipo,descricao,valor,valor_pago,categoria,cliente_fornecedor,vencimento,status,modalidade,total_parcelas,parcela_atual,lancamento_pai_id,frequencia,data_termino,observacao,forma_pagamento,custo_fixo_id)
+        VALUES (?,?,?,?,0,?,?,?,\'pendente\',?,?,?,?,?,?,?,?,?)
     ');
     $stmt->execute([
         $id, $d['tipo'], $d['descricao'], $valor,
@@ -118,5 +122,7 @@ function inserirLancamento(PDO $db, string $id, array $d, float $valor, string $
         $totalParcelas, $parcelaAtual, $paiId,
         $d['frequencia'] ?? null, $d['data_termino'] ?? null,
         $d['observacao'] ?? null,
+        $d['forma_pagamento'] ?? null,
+        $d['custo_fixo_id'] ?? null,
     ]);
 }

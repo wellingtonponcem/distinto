@@ -87,8 +87,8 @@ include __DIR__ . '/../includes/layout/head.php';
     </main>
 
     <!-- Modal -->
-    <div class="modal-overlay" x-show="modalAberto" x-cloak @click.self="modalAberto=false">
-        <div class="modal" style="max-width:460px;">
+    <div class="modal-overlay" x-show="modalAberto" x-cloak>
+        <div class="modal" style="max-width:500px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
                 <h2 style="font-size:17px; font-weight:600; color:#f1f5f9;" x-text="form.id ? 'Editar Custo Fixo' : 'Novo Custo Fixo'"></h2>
                 <button @click="modalAberto=false" style="color:#6b7280; background:none; border:none; cursor:pointer;">
@@ -126,9 +126,32 @@ include __DIR__ . '/../includes/layout/head.php';
                         </select>
                     </div>
                 </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                    <div>
+                        <label class="label">Valor (R$) *</label>
+                        <input class="input" type="number" step="0.01" min="0.01" x-model="form.valor" required placeholder="0,00">
+                    </div>
+                    <div>
+                        <label class="label">Dia do vencimento *</label>
+                        <input class="input" type="number" min="1" max="28" x-model="form.dia_vencimento" required placeholder="Ex: 5">
+                        <p style="font-size:11px;color:#6b7280;margin-top:4px;">Todo mês neste dia</p>
+                    </div>
+                </div>
                 <div style="margin-bottom:24px;">
-                    <label class="label">Valor (R$) *</label>
-                    <input class="input" type="number" step="0.01" min="0.01" x-model="form.valor" required placeholder="0,00">
+                    <label class="label">Forma de pagamento *</label>
+                    <select class="select" x-model="form.forma_pagamento" required>
+                        <option value="pix">Pix</option>
+                        <option value="boleto">Boleto</option>
+                        <option value="debito_automatico">Débito Automático</option>
+                        <option value="cartao_credito">Cartão de Crédito</option>
+                        <option value="cartao_debito">Cartão de Débito</option>
+                        <option value="transferencia">Transferência</option>
+                        <option value="dinheiro">Dinheiro</option>
+                    </select>
+                </div>
+                <div style="background:rgba(124,58,237,0.08); border:1px solid rgba(124,58,237,0.2); border-radius:8px; padding:12px 14px; margin-bottom:20px; font-size:13px; color:#a78bfa;">
+                    <i data-lucide="info" style="width:13px;height:13px;vertical-align:middle;margin-right:6px;"></i>
+                    Ao salvar, os lançamentos em <strong>Contas a Pagar</strong> serão gerados automaticamente para os próximos 12 meses.
                 </div>
                 <div style="display:flex; gap:10px; justify-content:flex-end;">
                     <button type="button" class="btn-secondary" @click="modalAberto=false">Cancelar</button>
@@ -174,7 +197,7 @@ function custosFixos() {
             const categoriasPadrao = ['aluguel','contabilidade','internet','impostos','folha','outros'];
             const cat = item?.categoria || 'outros';
             const ehPadrao = categoriasPadrao.includes(cat);
-            this.form = item ? { ...item } : { nome: '', categoria: 'outros', recorrencia: 'mensal', valor: '', ativo: '1' };
+            this.form = item ? { ...item } : { nome: '', categoria: 'outros', recorrencia: 'mensal', valor: '', dia_vencimento: '5', forma_pagamento: 'pix', ativo: '1' };
             this.categoriaCustom = ehPadrao ? '' : cat;
             this.mostrarCampoCustom = !ehPadrao;
             if (!ehPadrao) this.form.categoria = '__custom__';

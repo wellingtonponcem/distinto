@@ -108,7 +108,7 @@ include __DIR__ . '/../includes/layout/head.php';
     </main>
 
     <!-- Modal Novo/Editar Lançamento -->
-    <div class="modal-overlay" x-show="modalAberto" x-cloak @click.self="modalAberto=false">
+    <div class="modal-overlay" x-show="modalAberto" x-cloak>
         <div class="modal">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
                 <h2 style="font-size:17px; font-weight:600; color:#f1f5f9;" x-text="form.id ? 'Editar Lançamento' : 'Novo Lançamento'"></h2>
@@ -171,6 +171,20 @@ include __DIR__ . '/../includes/layout/head.php';
                     </div>
                 </div>
 
+                <div style="margin-bottom:16px;">
+                    <label class="label">Forma de Pagamento</label>
+                    <select class="select" x-model="form.forma_pagamento">
+                        <option value="">— Não informado —</option>
+                        <option value="pix">Pix</option>
+                        <option value="boleto">Boleto</option>
+                        <option value="debito_automatico">Débito Automático</option>
+                        <option value="cartao_credito">Cartão de Crédito</option>
+                        <option value="cartao_debito">Cartão de Débito</option>
+                        <option value="transferencia">Transferência</option>
+                        <option value="dinheiro">Dinheiro</option>
+                    </select>
+                </div>
+
                 <!-- Parcelado -->
                 <div x-show="form.modalidade==='parcelado'" style="margin-bottom:16px;">
                     <label class="label">Número de Parcelas</label>
@@ -193,9 +207,20 @@ include __DIR__ . '/../includes/layout/head.php';
                     </div>
                 </div>
 
-                <div style="margin-bottom:24px;">
+                <div style="margin-bottom:16px;">
                     <label class="label">Observação</label>
                     <textarea class="input" x-model="form.observacao" rows="2" placeholder="Opcional" style="resize:vertical;"></textarea>
+                </div>
+
+                <!-- Checkbox custo fixo — só para contas a pagar novas -->
+                <div x-show="!form.id && form.tipo === 'pagar'" style="background:rgba(124,58,237,0.08); border:1px solid rgba(124,58,237,0.2); border-radius:8px; padding:12px 14px; margin-bottom:20px;">
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                        <input type="checkbox" x-model="form.e_custo_fixo" style="width:16px;height:16px;accent-color:#7c3aed;">
+                        <span style="font-size:13px; color:#c4b5fd; font-weight:500;">Salvar também como Custo Fixo</span>
+                    </label>
+                    <p x-show="form.e_custo_fixo" style="font-size:12px; color:#a78bfa; margin-top:6px; margin-left:26px;">
+                        Será criado um registro em Custos Fixos com o mesmo nome, valor e categoria — vencendo todo mês no dia <strong x-text="form.vencimento ? new Date(form.vencimento + 'T00:00:00').getDate() : '?'"></strong>.
+                    </p>
                 </div>
 
                 <div style="display:flex; gap:10px; justify-content:flex-end;">
@@ -207,7 +232,7 @@ include __DIR__ . '/../includes/layout/head.php';
     </div>
 
     <!-- Modal Baixa (pagamento) -->
-    <div class="modal-overlay" x-show="modalBaixaAberto" x-cloak @click.self="modalBaixaAberto=false">
+    <div class="modal-overlay" x-show="modalBaixaAberto" x-cloak>
         <div class="modal" style="max-width:400px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h2 style="font-size:16px; font-weight:600; color:#f1f5f9;">Registrar Pagamento</h2>
@@ -296,7 +321,8 @@ function lancamentos() {
             this.form = lancamento ? { ...lancamento } : {
                 tipo: 'receber', modalidade: 'avista', descricao: '', valor: '',
                 vencimento: '', categoria: 'servicos', cliente_fornecedor: '',
-                total_parcelas: '', frequencia: 'mensal', data_termino: '', observacao: ''
+                forma_pagamento: '', total_parcelas: '', frequencia: 'mensal',
+                data_termino: '', observacao: '', e_custo_fixo: false
             };
             this.modalAberto = true;
             this.$nextTick(() => lucide.createIcons());
