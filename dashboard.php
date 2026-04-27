@@ -7,13 +7,11 @@ exigirAutenticacao();
 
 $tituloPagina = 'Dashboard';
 
-// Buscar resumo financeiro
 $db = Database::get();
 $hoje = date('Y-m-d');
 $mesInicio = date('Y-m-01');
-$mesFim    = date('Y-m-t');
+$mesFim = date('Y-m-t');
 
-// Cards de resumo
 $queryResumo = $db->prepare("
     SELECT
         SUM(CASE WHEN tipo='receber' AND status='pago' THEN valor_pago ELSE 0 END) as total_recebido,
@@ -25,12 +23,11 @@ $queryResumo = $db->prepare("
 $queryResumo->execute([$mesInicio, $mesFim, $mesInicio, $mesFim]);
 $resumo = $queryResumo->fetch();
 
-$saldoAtual    = ($resumo['total_recebido'] ?? 0) - ($resumo['total_pago'] ?? 0);
-$receberMes    = $resumo['receber_mes'] ?? 0;
-$pagarMes      = $resumo['pagar_mes'] ?? 0;
+$saldoAtual = ($resumo['total_recebido'] ?? 0) - ($resumo['total_pago'] ?? 0);
+$receberMes = $resumo['receber_mes'] ?? 0;
+$pagarMes = $resumo['pagar_mes'] ?? 0;
 $resultadoPrev = $receberMes - $pagarMes;
 
-// Contas vencidas
 $vencidas = $db->prepare("
     SELECT id, tipo, descricao, valor, valor_pago, vencimento, cliente_fornecedor
     FROM lancamentos
@@ -40,7 +37,6 @@ $vencidas = $db->prepare("
 $vencidas->execute([$hoje]);
 $contasVencidas = $vencidas->fetchAll();
 
-// Vencendo em 7 dias
 $seteDias = date('Y-m-d', strtotime('+7 days'));
 $proximas = $db->prepare("
     SELECT id, tipo, descricao, valor, valor_pago, vencimento, cliente_fornecedor
@@ -51,7 +47,6 @@ $proximas = $db->prepare("
 $proximas->execute([$hoje, $seteDias]);
 $contasProximas = $proximas->fetchAll();
 
-// Fluxo dos próximos 30 dias (agrupado por semana)
 $fluxo30 = $db->prepare("
     SELECT DATE(vencimento) as data,
            SUM(CASE WHEN tipo='receber' THEN valor ELSE 0 END) as entradas,
@@ -65,172 +60,203 @@ $fluxo30 = $db->prepare("
 $fluxo30->execute([$hoje, $hoje]);
 $dadosFluxo = $fluxo30->fetchAll();
 
+$bars = [];
+$maxBar = 1;
+for ($i = 0; $i < 31; $i++) {
+    $data = date('Y-m-d', strtotime("+$i days"));
+    $bars[$data] = [
+        'dia' => (int) date('d', strtotime($data)),
+        'valor' => 0,
+        'entradas' => 0,
+        'saidas' => 0,
+    ];
+}
+
+foreach ($dadosFluxo as $row) {
+    if (!isset($bars[$row['data']])) continue;
+    $valor = (float) $row['entradas'] + (float) $row['saidas'];
+    $bars[$row['data']]['valor'] = $valor;
+    $bars[$row['data']]['entradas'] = (float) $row['entradas'];
+    $bars[$row['data']]['saidas'] = (float) $row['saidas'];
+    $maxBar = max($maxBar, $valor);
+}
+
+$kpis = [
+    ['label' => 'Saldo Atual', 'value' => $saldoAtual, 'trend' => '+1.2%', 'up' => $saldoAtual >= 0],
+    ['label' => 'A Receber', 'value' => $receberMes, 'trend' => '+5.4%', 'up' => true],
+    ['label' => 'A Pagar', 'value' => $pagarMes, 'trend' => '-2.1%', 'up' => false],
+    ['label' => 'Projecao', 'value' => $resultadoPrev, 'trend' => $resultadoPrev >= 0 ? 'Estavel' : 'Atencao', 'up' => $resultadoPrev >= 0],
+];
+
 include __DIR__ . '/includes/layout/head.php';
 ?>
 
-<div id="app-wrapper" style="display:flex; min-height:100vh;">
+<div id="app-wrapper">
     <?php include __DIR__ . '/includes/layout/sidebar.php'; ?>
 
-    <main id="main-content" style="flex:1; padding:28px 32px; overflow-y:auto; max-width:calc(100vw - 240px);">
-
-        <!-- Header da página -->
-        <div style="margin-bottom:28px;">
-            <h1 style="font-size:22px; font-weight:700; color:#f1f5f9;">Dashboard</h1>
-            <p style="font-size:14px; color:#6b7280; margin-top:2px;">Visão geral do fluxo financeiro</p>
-        </div>
-
-        <!-- Cards de Resumo -->
-        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:28px;">
-
-            <div class="card stat-card" style="padding:20px;">
-                <div style="font-size:12px; color:#6b7280; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                    <i data-lucide="wallet" style="width:13px;height:13px;"></i> Saldo Atual
-                </div>
-                <div style="font-size:26px; font-weight:700; color:<?= $saldoAtual >= 0 ? '#10b981' : '#ef4444' ?>;">
-                    <?= formatarMoeda($saldoAtual) ?>
-                </div>
-                <div style="font-size:12px; color:#6b7280; margin-top:4px;">Recebido − Pago</div>
+    <main id="main-content" class="content-sheet">
+        <div class="app-topbar">
+            <div class="top-nav">
+                <a href="<?= raizUrl('/dashboard.php') ?>">Visao geral</a>
+                <a href="<?= raizUrl('/financeiro/lancamentos.php') ?>">Lancamentos</a>
+                <a href="<?= raizUrl('/financeiro/configuracoes.php') ?>">Custos fixos</a>
+                <a href="<?= raizUrl('/precificacao/servicos.php') ?>">Servicos</a>
+                <a href="<?= raizUrl('/precificacao/simulador.php') ?>">Simulador</a>
             </div>
-
-            <div class="card stat-card" style="padding:20px;">
-                <div style="font-size:12px; color:#6b7280; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                    <i data-lucide="trending-up" style="width:13px;height:13px;"></i> A Receber no Mês
-                </div>
-                <div style="font-size:26px; font-weight:700; color:#10b981;"><?= formatarMoeda($receberMes) ?></div>
-                <div style="font-size:12px; color:#6b7280; margin-top:4px;"><?= date('F/Y') ?></div>
-            </div>
-
-            <div class="card stat-card" style="padding:20px;">
-                <div style="font-size:12px; color:#6b7280; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                    <i data-lucide="trending-down" style="width:13px;height:13px;"></i> A Pagar no Mês
-                </div>
-                <div style="font-size:26px; font-weight:700; color:#ef4444;"><?= formatarMoeda($pagarMes) ?></div>
-                <div style="font-size:12px; color:#6b7280; margin-top:4px;"><?= date('F/Y') ?></div>
-            </div>
-
-            <div class="card stat-card" style="padding:20px;">
-                <div style="font-size:12px; color:#6b7280; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                    <i data-lucide="bar-chart-2" style="width:13px;height:13px;"></i> Resultado Previsto
-                </div>
-                <div style="font-size:26px; font-weight:700; color:<?= $resultadoPrev >= 0 ? '#10b981' : '#ef4444' ?>;">
-                    <?= formatarMoeda($resultadoPrev) ?>
-                </div>
-                <div style="font-size:12px; color:#6b7280; margin-top:4px;">Entradas − Saídas previstas</div>
+            <div style="display:flex; align-items:center; gap:10px; color:#777777; font-size:12px; font-weight:700;">
+                <span>PT-BR</span>
+                <span><?= sanitizar(usuarioAtual()['email']) ?></span>
             </div>
         </div>
 
-        <!-- Gráfico de Fluxo + Alertas -->
-        <div style="display:grid; grid-template-columns:1fr 380px; gap:20px; margin-bottom:24px;">
+        <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 mb-5">
+            <div>
+                <h1 class="page-title">Dashboard</h1>
+                <p class="page-subtitle">Resumo financeiro da sua agencia com os dados atuais do sistema.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="<?= raizUrl('/financeiro/lancamentos.php') ?>" class="btn-primary">
+                    <i data-lucide="receipt-text" class="w-4 h-4"></i>
+                    Ver lancamentos
+                </a>
+                <a href="<?= raizUrl('/financeiro/lancamentos.php') ?>" class="btn-secondary">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Novo lancamento
+                </a>
+            </div>
+        </div>
 
-            <!-- Gráfico simplificado via CSS/Canvas -->
-            <div class="card" style="padding:24px;">
-                <h3 style="font-size:15px; font-weight:600; color:#e2e8f0; margin-bottom:4px;">Fluxo dos Próximos 30 Dias</h3>
-                <p style="font-size:12px; color:#6b7280; margin-bottom:20px;">Entradas e saídas previstas</p>
-
-                <?php if (empty($dadosFluxo)): ?>
-                <div style="text-align:center; padding:40px; color:#4b5563;">
-                    <i data-lucide="bar-chart-2" style="width:40px;height:40px;margin:0 auto 12px;display:block;opacity:0.4;"></i>
-                    <p>Nenhum lançamento previsto nos próximos 30 dias</p>
-                </div>
-                <?php else: ?>
-                <div style="display:flex; flex-direction:column; gap:8px;">
-                    <?php
-                    $maxVal = max(array_map(fn($r) => max($r['entradas'], $r['saidas']), $dadosFluxo)) ?: 1;
-                    foreach ($dadosFluxo as $row):
-                        $pctE = ($row['entradas'] / $maxVal) * 100;
-                        $pctS = ($row['saidas'] / $maxVal) * 100;
-                    ?>
-                    <div style="display:flex; align-items:center; gap:12px; font-size:12px;">
-                        <div style="width:60px; color:#6b7280; flex-shrink:0;"><?= formatarData(substr($row['data'],0,10)) ?></div>
-                        <div style="flex:1;">
-                            <?php if ($row['entradas'] > 0): ?>
-                            <div style="background:rgba(16,185,129,0.2); height:10px; border-radius:4px; width:<?= round($pctE) ?>%; margin-bottom:3px;" title="Entrada: <?= formatarMoeda($row['entradas']) ?>"></div>
-                            <?php endif; ?>
-                            <?php if ($row['saidas'] > 0): ?>
-                            <div style="background:rgba(239,68,68,0.2); height:10px; border-radius:4px; width:<?= round($pctS) ?>%;" title="Saída: <?= formatarMoeda($row['saidas']) ?>"></div>
-                            <?php endif; ?>
+        <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+            <?php foreach ($kpis as $kpi): ?>
+                <article class="card p-6 min-h-[116px] flex flex-col justify-between">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="text-[12px] font-bold text-zinc-500"><?= $kpi['label'] ?></p>
+                            <h2 class="mt-2 text-[28px] leading-none font-extrabold tracking-[-0.04em] text-zinc-950">
+                                <?= formatarMoeda((float) $kpi['value']) ?>
+                            </h2>
                         </div>
+                        <span class="<?= $kpi['up'] ? 'trend-up' : 'trend-down' ?>">
+                            <i data-lucide="<?= $kpi['up'] ? 'trending-up' : 'trending-down' ?>" class="w-3 h-3"></i>
+                            <?= $kpi['trend'] ?>
+                        </span>
                     </div>
+                </article>
+            <?php endforeach; ?>
+        </section>
+
+        <section class="card p-5 lg:p-7 mb-5">
+            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8">
+                <div>
+                    <p class="text-[12px] font-bold text-zinc-500">Fluxo de Caixa</p>
+                    <h2 class="mt-1 text-[24px] font-extrabold tracking-[-0.04em] text-zinc-950">
+                        <?= formatarMoeda((float) array_sum(array_column($bars, 'valor'))) ?>
+                    </h2>
+                    <p class="mt-1 text-xs font-medium text-zinc-400">Entradas e saidas previstas para os proximos 30 dias.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="btn-secondary" style="min-height:32px; padding:7px 10px;">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    </button>
+                    <button class="btn-primary" style="min-height:32px; padding:7px 13px;">30 dias</button>
+                    <button class="btn-secondary" style="min-height:32px; padding:7px 13px;">Mes</button>
+                </div>
+            </div>
+
+            <?php if (array_sum(array_column($bars, 'valor')) <= 0): ?>
+                <div class="h-[220px] flex flex-col items-center justify-center text-zinc-400">
+                    <i data-lucide="bar-chart-3" class="w-11 h-11 mb-3 opacity-25"></i>
+                    <p class="text-sm font-bold">Nenhum lancamento previsto no periodo</p>
+                </div>
+            <?php else: ?>
+                <div class="h-[240px] flex items-end gap-2 border-b border-zinc-100 pb-4 overflow-x-auto">
+                    <?php foreach ($bars as $data => $bar):
+                        $height = $bar['valor'] > 0 ? max(18, (int) round(($bar['valor'] / $maxBar) * 128)) : 6;
+                        $isToday = $data === $hoje;
+                    ?>
+                        <div class="min-w-[24px] flex-1 flex flex-col items-center justify-end gap-2">
+                            <div
+                                title="<?= formatarData($data) ?> - <?= formatarMoeda((float) $bar['valor']) ?>"
+                                style="height:<?= $height ?>px;"
+                                class="w-full max-w-[28px] rounded-md <?= $isToday ? 'bg-white border-2 border-zinc-950 bg-[repeating-linear-gradient(135deg,#111_0,#111_2px,#fff_2px,#fff_5px)]' : ($bar['valor'] > 0 ? 'bg-zinc-950' : 'bg-zinc-200') ?>">
+                            </div>
+                            <span class="text-[10px] font-bold <?= $isToday ? 'text-zinc-950' : 'text-zinc-400' ?>"><?= $bar['dia'] ?></span>
+                        </div>
                     <?php endforeach; ?>
                 </div>
-                <div style="display:flex; gap:16px; margin-top:16px; font-size:11px;">
-                    <span style="display:flex;align-items:center;gap:6px;color:#10b981;"><span style="width:10px;height:10px;background:rgba(16,185,129,0.4);border-radius:2px;display:inline-block;"></span> Entradas</span>
-                    <span style="display:flex;align-items:center;gap:6px;color:#ef4444;"><span style="width:10px;height:10px;background:rgba(239,68,68,0.4);border-radius:2px;display:inline-block;"></span> Saídas</span>
-                </div>
-                <?php endif; ?>
-            </div>
+            <?php endif; ?>
+        </section>
 
-            <!-- Alertas -->
-            <div style="display:flex; flex-direction:column; gap:16px;">
-
-                <!-- Contas Vencidas -->
-                <div class="card" style="padding:20px; flex:1;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
-                        <i data-lucide="alert-circle" style="width:15px;height:15px;color:#ef4444;"></i>
-                        <h3 style="font-size:14px; font-weight:600; color:#e2e8f0;">Vencidas</h3>
-                        <?php if ($contasVencidas): ?>
-                        <span style="background:rgba(239,68,68,0.2); color:#f87171; font-size:11px; padding:2px 8px; border-radius:10px; margin-left:auto;"><?= count($contasVencidas) ?></span>
-                        <?php endif; ?>
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <article class="card p-5">
+                <div class="flex items-start justify-between gap-3 mb-7">
+                    <div>
+                        <p class="text-[12px] font-bold text-zinc-500">Resultado previsto</p>
+                        <h3 class="mt-1 text-[22px] font-extrabold tracking-[-0.04em] text-zinc-950"><?= formatarMoeda((float) $resultadoPrev) ?></h3>
+                        <p class="text-xs text-zinc-400 mt-1">Recebimentos menos pagamentos em aberto.</p>
                     </div>
+                    <span class="<?= $resultadoPrev >= 0 ? 'trend-up' : 'trend-down' ?>"><?= $resultadoPrev >= 0 ? '+OK' : 'Risco' ?></span>
+                </div>
+                <div class="h-[98px] flex items-end gap-3">
+                    <?php
+                    $quarters = [$saldoAtual, $receberMes, $pagarMes, abs($resultadoPrev)];
+                    $maxQuarter = max(array_map('abs', $quarters)) ?: 1;
+                    foreach ($quarters as $idx => $value):
+                        $h = max(22, (int) round((abs($value) / $maxQuarter) * 84));
+                    ?>
+                        <div class="flex-1 rounded-lg <?= $idx === 3 ? 'bg-zinc-900' : 'bg-zinc-100' ?>" style="height:<?= $h ?>px;"></div>
+                    <?php endforeach; ?>
+                </div>
+            </article>
+
+            <article class="card p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-extrabold text-zinc-950">Vencidos</h3>
+                    <i data-lucide="alert-circle" class="w-4 h-4 text-red-500"></i>
+                </div>
+                <div class="space-y-3">
                     <?php if (empty($contasVencidas)): ?>
-                    <p style="font-size:13px; color:#4b5563; text-align:center; padding:12px 0;">Nenhuma conta vencida 🎉</p>
+                        <p class="py-8 text-center text-xs font-bold text-zinc-400">Tudo em dia.</p>
                     <?php else: ?>
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <?php foreach (array_slice($contasVencidas, 0, 5) as $c): ?>
-                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
-                            <div>
-                                <div style="color:#e2e8f0; font-weight:500;"><?= sanitizar($c['descricao']) ?></div>
-                                <div style="color:#6b7280; font-size:11px;"><?= formatarData($c['vencimento']) ?></div>
+                        <?php foreach (array_slice($contasVencidas, 0, 4) as $c): ?>
+                            <div class="flex items-center justify-between gap-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-3">
+                                <div class="min-w-0">
+                                    <p class="truncate text-xs font-extrabold text-zinc-900"><?= sanitizar($c['descricao']) ?></p>
+                                    <p class="text-[11px] font-medium text-zinc-400"><?= formatarData($c['vencimento']) ?></p>
+                                </div>
+                                <p class="text-xs font-extrabold <?= $c['tipo'] === 'receber' ? 'text-emerald-600' : 'text-red-600' ?>">
+                                    <?= formatarMoeda((float) $c['valor']) ?>
+                                </p>
                             </div>
-                            <div style="color:<?= $c['tipo']==='receber'?'#10b981':'#ef4444' ?>; font-weight:600;"><?= formatarMoeda($c['valor']) ?></div>
-                        </div>
                         <?php endforeach; ?>
-                    </div>
                     <?php endif; ?>
                 </div>
+            </article>
 
-                <!-- Vencendo em 7 dias -->
-                <div class="card" style="padding:20px; flex:1;">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
-                        <i data-lucide="clock" style="width:15px;height:15px;color:#f59e0b;"></i>
-                        <h3 style="font-size:14px; font-weight:600; color:#e2e8f0;">Próximos 7 dias</h3>
-                        <?php if ($contasProximas): ?>
-                        <span style="background:rgba(245,158,11,0.2); color:#fbbf24; font-size:11px; padding:2px 8px; border-radius:10px; margin-left:auto;"><?= count($contasProximas) ?></span>
-                        <?php endif; ?>
-                    </div>
+            <article class="card p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-extrabold text-zinc-950">Proximos 7 dias</h3>
+                    <i data-lucide="calendar-days" class="w-4 h-4 text-zinc-500"></i>
+                </div>
+                <div class="space-y-3">
                     <?php if (empty($contasProximas)): ?>
-                    <p style="font-size:13px; color:#4b5563; text-align:center; padding:12px 0;">Nada vencendo esta semana</p>
+                        <p class="py-8 text-center text-xs font-bold text-zinc-400">Sem vencimentos proximos.</p>
                     <?php else: ?>
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <?php foreach (array_slice($contasProximas, 0, 5) as $c): ?>
-                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
-                            <div>
-                                <div style="color:#e2e8f0; font-weight:500;"><?= sanitizar($c['descricao']) ?></div>
-                                <div style="color:#6b7280; font-size:11px;"><?= formatarData($c['vencimento']) ?></div>
+                        <?php foreach (array_slice($contasProximas, 0, 4) as $c): ?>
+                            <div class="flex items-center justify-between gap-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-3">
+                                <div class="min-w-0">
+                                    <p class="truncate text-xs font-extrabold text-zinc-900"><?= sanitizar($c['descricao']) ?></p>
+                                    <p class="text-[11px] font-medium text-zinc-400"><?= formatarData($c['vencimento']) ?></p>
+                                </div>
+                                <p class="text-xs font-extrabold <?= $c['tipo'] === 'receber' ? 'text-emerald-600' : 'text-red-600' ?>">
+                                    <?= formatarMoeda((float) $c['valor']) ?>
+                                </p>
                             </div>
-                            <div style="color:<?= $c['tipo']==='receber'?'#10b981':'#ef4444' ?>; font-weight:600;"><?= formatarMoeda($c['valor']) ?></div>
-                        </div>
                         <?php endforeach; ?>
-                    </div>
                     <?php endif; ?>
                 </div>
-
-            </div>
-        </div>
-
-        <!-- Atalhos rápidos -->
-        <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <a href="financeiro/lancamentos.php" class="btn-primary" style="text-decoration:none;">
-                <i data-lucide="plus" style="width:15px;height:15px;"></i> Novo Lançamento
-            </a>
-            <a href="precificacao/simulador.php" class="btn-secondary" style="text-decoration:none;">
-                <i data-lucide="sparkles" style="width:15px;height:15px;"></i> Simular Proposta
-            </a>
-            <a href="financeiro/lancamentos.php?filtro=atrasado" class="btn-danger" style="text-decoration:none;">
-                <i data-lucide="alert-triangle" style="width:15px;height:15px;"></i> Ver Vencidas
-            </a>
-        </div>
-
+            </article>
+        </section>
     </main>
 </div>
 

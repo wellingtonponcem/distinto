@@ -1,87 +1,71 @@
 <?php
 $usuario = usuarioAtual();
 
-// Detectar página atual para highlight do menu
 $paginaAtual = $_SERVER['SCRIPT_NAME'];
 function menuAtivo(string $path): string {
     global $paginaAtual;
     return str_contains($paginaAtual, $path) ? 'ativo' : '';
 }
 ?>
-<div class="sidebar flex flex-col" style="width:240px; min-height:100vh; flex-shrink:0; position:sticky; top:0; height:100vh;">
-
-    <!-- Logo -->
-    <div style="padding:20px 20px 16px; border-bottom:1px solid rgba(255,255,255,0.06);">
-        <div style="display:flex; align-items:center; gap:10px;">
-            <div style="width:32px; height:32px; background:linear-gradient(135deg,#7c3aed,#3b82f6); border-radius:8px; display:flex; align-items:center; justify-content:center;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            </div>
+<aside class="sidebar flex flex-col">
+    <div style="padding:18px 18px 14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
             <div>
-                <div style="font-size:15px; font-weight:700; color:#f1f5f9; letter-spacing:-0.3px;">Distinto</div>
-                <div style="font-size:10px; color:#6b7280;">Gestão de Agência</div>
+                <div style="color:#ffffff; font-size:20px; font-weight:800; letter-spacing:-0.04em;">DISTINTO</div>
+                <div class="sidebar-copy" style="margin-top:2px; color:#686868; font-size:10px; font-weight:800; letter-spacing:0.08em;">AGENCY ERP</div>
+            </div>
+            <div style="width:30px; height:30px; display:grid; place-items:center; border-radius:999px; background:#2a2a2a; color:#e8e8e8;">
+                <i data-lucide="menu" style="width:16px;height:16px;"></i>
             </div>
         </div>
     </div>
 
-    <!-- Nav -->
-    <nav style="flex:1; padding:12px 10px; overflow-y:auto;">
-
+    <nav style="flex:1; padding:8px 12px; overflow-y:auto;">
         <div class="nav-section">Principal</div>
         <a href="<?= raizUrl('/dashboard.php') ?>" class="nav-link <?= menuAtivo('/dashboard') ?>">
-            <i data-lucide="layout-dashboard" style="width:16px;height:16px;"></i>
-            Dashboard
+            <i data-lucide="layout-dashboard" style="width:17px;height:17px;"></i>
+            <span class="nav-label">Dashboard</span>
         </a>
 
-        <div class="nav-section" style="margin-top:8px;">Financeiro</div>
+        <div class="nav-section">Financeiro</div>
         <a href="<?= raizUrl('/financeiro/lancamentos.php') ?>" class="nav-link <?= menuAtivo('/lancamentos') ?>">
-            <i data-lucide="arrow-left-right" style="width:16px;height:16px;"></i>
-            Lançamentos
+            <i data-lucide="receipt-text" style="width:17px;height:17px;"></i>
+            <span class="nav-label">Lancamentos</span>
         </a>
         <a href="<?= raizUrl('/financeiro/configuracoes.php') ?>" class="nav-link <?= menuAtivo('/financeiro/configuracoes') ?>">
-            <i data-lucide="building-2" style="width:16px;height:16px;"></i>
-            Custos Fixos
+            <i data-lucide="calculator" style="width:17px;height:17px;"></i>
+            <span class="nav-label">Custos Fixos</span>
         </a>
 
-        <div class="nav-section" style="margin-top:8px;">Precificação</div>
+        <div class="nav-section">Servicos</div>
         <a href="<?= raizUrl('/precificacao/servicos.php') ?>" class="nav-link <?= menuAtivo('/servicos') ?>">
-            <i data-lucide="briefcase" style="width:16px;height:16px;"></i>
-            Serviços
+            <i data-lucide="package" style="width:17px;height:17px;"></i>
+            <span class="nav-label">Tabela de Precos</span>
         </a>
         <a href="<?= raizUrl('/precificacao/simulador.php') ?>" class="nav-link <?= menuAtivo('/simulador') ?>">
-            <i data-lucide="sparkles" style="width:16px;height:16px;"></i>
-            Simulador IA
+            <i data-lucide="sparkles" style="width:17px;height:17px;"></i>
+            <span class="nav-label">Simulador IA</span>
         </a>
 
-        <div class="nav-section" style="margin-top:8px;">Em Breve</div>
-        <?php foreach(['Clientes','Contratos','Projetos','Relatórios'] as $item): ?>
-        <div class="nav-link" style="opacity:0.4; cursor:not-allowed;">
-            <i data-lucide="clock" style="width:16px;height:16px;"></i>
-            <?= $item ?>
-            <span style="margin-left:auto; font-size:9px; background:rgba(124,58,237,0.3); color:#a78bfa; padding:2px 6px; border-radius:4px;">Logo</span>
-        </div>
-        <?php endforeach; ?>
-
-        <div class="nav-section" style="margin-top:8px;">Sistema</div>
+        <div class="nav-section">Sistema</div>
         <a href="<?= raizUrl('/configuracoes.php') ?>" class="nav-link <?= menuAtivo('/configuracoes') ?>">
-            <i data-lucide="settings" style="width:16px;height:16px;"></i>
-            Configurações
+            <i data-lucide="settings" style="width:17px;height:17px;"></i>
+            <span class="nav-label">Ajustes</span>
         </a>
-
     </nav>
 
-    <!-- Usuário + logout -->
-    <div style="padding:14px 12px; border-top:1px solid rgba(255,255,255,0.06);">
-        <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.04); border-radius:10px;">
-            <div style="width:32px; height:32px; background:linear-gradient(135deg,#7c3aed,#3b82f6); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:white; flex-shrink:0;">
+    <div style="padding:14px 14px 18px; border-top:1px solid rgba(255,255,255,0.06);">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:34px; height:34px; display:grid; place-items:center; flex-shrink:0; border-radius:999px; background:#f6f6f6; color:#111111; font-size:13px; font-weight:800;">
                 <?= strtoupper(substr($usuario['nome'], 0, 1)) ?>
             </div>
-            <div style="min-width:0; flex:1;">
-                <div style="font-size:13px; font-weight:500; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= sanitizar($usuario['nome']) ?></div>
-                <div style="font-size:11px; color:#6b7280; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= sanitizar($usuario['email']) ?></div>
+            <div class="user-meta" style="min-width:0; flex:1;">
+                <div style="color:#ffffff; font-size:12px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= sanitizar($usuario['nome']) ?></div>
+                <div style="color:#777777; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= sanitizar($usuario['email']) ?></div>
             </div>
-            <a href="<?= raizUrl('/api/auth/logout.php') ?>" title="Sair" style="color:#6b7280; flex-shrink:0;">
+            <a href="<?= raizUrl('/api/auth/logout.php') ?>" title="Sair" style="display:grid; place-items:center; width:28px; height:28px; flex-shrink:0; color:#868686; border-radius:8px; text-decoration:none;">
                 <i data-lucide="log-out" style="width:15px;height:15px;"></i>
             </a>
         </div>
     </div>
-</div>
+</aside>
