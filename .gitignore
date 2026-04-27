@@ -1,5 +1,6 @@
 # Segredos — nunca versionar
 config/env.php
+.env
 
 # Claude Code interno
 .claude/
