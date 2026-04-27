@@ -3,14 +3,17 @@ require_once __DIR__ . '/../../config/env.php';
 require_once __DIR__ . '/../../config/auth.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/helpers.php';
+require_once __DIR__ . '/../../includes/financeiro_custos.php';
 
 exigirAutenticacao();
 
 $db     = Database::get();
 $metodo = $_SERVER['REQUEST_METHOD'];
+garantirEstruturaFinanceira($db);
 
 switch ($metodo) {
     case 'GET':
+        sincronizarLancamentosCustosFixos($db);
         $rows = $db->query("
             SELECT *,
               CASE
@@ -29,11 +32,12 @@ switch ($metodo) {
         validarLancamento($d);
 
         // Se marcado como custo fixo, criar/vincular custo_fixo
-        if (!empty($d['e_custo_fixo']) && empty($d['custo_fixo_id'])) {
+        if (($d['tipo'] ?? '') === 'pagar' && !empty($d['e_custo_fixo']) && empty($d['custo_fixo_id'])) {
             $d['custo_fixo_id'] = criarCustoFixoFromLancamento($db, $d);
         }
 
         criarLancamento($db, $d);
+        sincronizarLancamentosCustosFixos($db);
         responderJson(['ok' => true], 201);
 
     case 'PUT':

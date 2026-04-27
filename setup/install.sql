@@ -33,8 +33,10 @@ CREATE TABLE IF NOT EXISTS `custos_fixos` (
   `id` VARCHAR(32) NOT NULL,
   `nome` VARCHAR(255) NOT NULL,
   `valor` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  `categoria` ENUM('aluguel','contabilidade','internet','impostos','folha','outros') NOT NULL DEFAULT 'outros',
+  `categoria` VARCHAR(100) NOT NULL DEFAULT 'outros',
   `recorrencia` ENUM('mensal','anual') NOT NULL DEFAULT 'mensal',
+  `dia_vencimento` INT NOT NULL DEFAULT 5,
+  `forma_pagamento` VARCHAR(50) DEFAULT 'pix',
   `ativo` TINYINT(1) NOT NULL DEFAULT 1,
   `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -58,11 +60,14 @@ CREATE TABLE IF NOT EXISTS `lancamentos` (
   `frequencia` ENUM('semanal','mensal','anual'),
   `data_termino` DATE,
   `observacao` TEXT,
+  `forma_pagamento` VARCHAR(50),
+  `custo_fixo_id` VARCHAR(32),
   `criado_em` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_tipo` (`tipo`),
   KEY `idx_status` (`status`),
   KEY `idx_vencimento` (`vencimento`),
+  KEY `idx_custo_fixo` (`custo_fixo_id`),
   CONSTRAINT `fk_lancamento_pai` FOREIGN KEY (`lancamento_pai_id`) REFERENCES `lancamentos` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

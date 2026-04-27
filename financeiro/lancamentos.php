@@ -213,9 +213,9 @@ include __DIR__ . '/../includes/layout/head.php';
                 </div>
 
                 <!-- Checkbox custo fixo — só para contas a pagar novas -->
-                <div x-show="!form.id && form.tipo === 'pagar'" style="background:rgba(124,58,237,0.08); border:1px solid rgba(124,58,237,0.2); border-radius:8px; padding:12px 14px; margin-bottom:20px;">
+                <div x-show="!form.id && form.tipo === 'pagar'" style="background:#f7f7f7; border:1px solid #e5e5e5; border-radius:10px; padding:14px 16px; margin-bottom:20px;">
                     <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
-                        <input type="checkbox" x-model="form.e_custo_fixo" style="width:16px;height:16px;accent-color:#7c3aed;">
+                        <input type="checkbox" x-model="form.e_custo_fixo" style="width:16px;height:16px;accent-color:#111111;">
                         <span style="font-size:13px; color:#c4b5fd; font-weight:500;">Salvar também como Custo Fixo</span>
                     </label>
                     <p x-show="form.e_custo_fixo" style="font-size:12px; color:#a78bfa; margin-top:6px; margin-left:26px;">
