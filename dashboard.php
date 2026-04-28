@@ -14,10 +14,10 @@ $mesFim = date('Y-m-t');
 
 $queryResumo = $db->prepare("
     SELECT
-        SUM(CASE WHEN tipo='receber' AND status='pago' THEN valor_pago ELSE 0 END) as total_recebido,
-        SUM(CASE WHEN tipo='pagar'   AND status='pago' THEN valor_pago ELSE 0 END) as total_pago,
-        SUM(CASE WHEN tipo='receber' AND vencimento BETWEEN ? AND ? AND status != 'pago' THEN valor ELSE 0 END) as receber_mes,
-        SUM(CASE WHEN tipo='pagar'   AND vencimento BETWEEN ? AND ? AND status != 'pago' THEN valor ELSE 0 END) as pagar_mes
+        SUM(CASE WHEN tipo='receber' THEN valor_pago ELSE 0 END) as total_recebido,
+        SUM(CASE WHEN tipo='pagar' THEN valor_pago ELSE 0 END) as total_pago,
+        SUM(CASE WHEN tipo='receber' AND vencimento BETWEEN ? AND ? AND status NOT IN ('pago','cancelado') THEN (valor - valor_pago) ELSE 0 END) as receber_mes,
+        SUM(CASE WHEN tipo='pagar'   AND vencimento BETWEEN ? AND ? AND status NOT IN ('pago','cancelado') THEN (valor - valor_pago) ELSE 0 END) as pagar_mes
     FROM lancamentos WHERE status != 'cancelado'
 ");
 $queryResumo->execute([$mesInicio, $mesFim, $mesInicio, $mesFim]);
@@ -28,10 +28,19 @@ $receberMes = $resumo['receber_mes'] ?? 0;
 $pagarMes = $resumo['pagar_mes'] ?? 0;
 $resultadoPrev = $receberMes - $pagarMes;
 
+// Buscar contagem de itens para os KPIs
+$stmtQtdRec = $db->prepare("SELECT COUNT(*) FROM lancamentos WHERE tipo='receber' AND vencimento BETWEEN ? AND ? AND status NOT IN ('pago','cancelado')");
+$stmtQtdRec->execute([$mesInicio, $mesFim]);
+$qtdReceber = $stmtQtdRec->fetchColumn();
+
+$stmtQtdPag = $db->prepare("SELECT COUNT(*) FROM lancamentos WHERE tipo='pagar' AND vencimento BETWEEN ? AND ? AND status NOT IN ('pago','cancelado')");
+$stmtQtdPag->execute([$mesInicio, $mesFim]);
+$qtdPagar = $stmtQtdPag->fetchColumn();
+
 $vencidas = $db->prepare("
     SELECT id, tipo, descricao, valor, valor_pago, vencimento, cliente_fornecedor
     FROM lancamentos
-    WHERE vencimento < ? AND status IN ('pendente','pago_parcial')
+    WHERE vencimento < ? AND status IN ('pendente','pago_parcial','atrasado')
     ORDER BY vencimento ASC LIMIT 10
 ");
 $vencidas->execute([$hoje]);
@@ -49,11 +58,11 @@ $contasProximas = $proximas->fetchAll();
 
 $fluxo30 = $db->prepare("
     SELECT DATE(vencimento) as data,
-           SUM(CASE WHEN tipo='receber' THEN valor ELSE 0 END) as entradas,
-           SUM(CASE WHEN tipo='pagar'   THEN valor ELSE 0 END) as saidas
+           SUM(CASE WHEN tipo='receber' THEN (valor - valor_pago) ELSE 0 END) as entradas,
+           SUM(CASE WHEN tipo='pagar'   THEN (valor - valor_pago) ELSE 0 END) as saidas
     FROM lancamentos
     WHERE vencimento BETWEEN ? AND DATE_ADD(?, INTERVAL 30 DAY)
-      AND status IN ('pendente','pago_parcial')
+      AND status NOT IN ('pago', 'cancelado')
     GROUP BY DATE(vencimento)
     ORDER BY data ASC
 ");
@@ -82,10 +91,10 @@ foreach ($dadosFluxo as $row) {
 }
 
 $kpis = [
-    ['label' => 'Saldo Atual', 'value' => $saldoAtual, 'trend' => '+1.2%', 'up' => $saldoAtual >= 0],
-    ['label' => 'A Receber', 'value' => $receberMes, 'trend' => '+5.4%', 'up' => true],
-    ['label' => 'A Pagar', 'value' => $pagarMes, 'trend' => '-2.1%', 'up' => false],
-    ['label' => 'Projecao', 'value' => $resultadoPrev, 'trend' => $resultadoPrev >= 0 ? 'Estavel' : 'Atencao', 'up' => $resultadoPrev >= 0],
+    ['label' => 'Saldo Atual', 'value' => $saldoAtual, 'trend' => 'Geral', 'up' => $saldoAtual >= 0],
+    ['label' => 'A Receber no Mês', 'value' => $receberMes, 'trend' => $qtdReceber . ' itens', 'up' => true],
+    ['label' => 'A Pagar no Mês', 'value' => $pagarMes, 'trend' => $qtdPagar . ' itens', 'up' => false],
+    ['label' => 'Resultado Previsto', 'value' => $resultadoPrev, 'trend' => $resultadoPrev >= 0 ? 'Positivo' : 'Negativo', 'up' => $resultadoPrev >= 0],
 ];
 
 include __DIR__ . '/includes/layout/head.php';
