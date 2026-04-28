@@ -69,7 +69,7 @@ function menuAtivo(string $path): string {
             <span class="nav-label">Ajustes</span>
         </a>
         <?php if ($usuario['nivel'] == 1): ?>
-        <a href="<?= raizUrl('/sistema/usuarios.php') ?>" class="nav-link <?= menuAtivo('/sistema/usuarios') ?>">
+        <a href="<?= raizUrl('/gerenciamento/usuarios.php') ?>" class="nav-link <?= menuAtivo('/gerenciamento/usuarios') ?>">
             <i data-lucide="users" style="width:17px;height:17px;"></i>
             <span class="nav-label">Usuarios</span>
         </a>
