@@ -56,6 +56,16 @@ try {
             $d['modalidade'] ?? 'avista', empty($d['forma_pagamento']) ? null : $d['forma_pagamento'],
             empty($d['observacao']) ? null : $d['observacao']
         ];
+        
+        if (isset($d['status'])) {
+            $sets[] = 'status=?';
+            $params[] = $d['status'];
+        }
+        if (isset($d['valor_pago'])) {
+            $sets[] = 'valor_pago=?';
+            $params[] = $d['valor_pago'];
+        }
+
         if (tabelaTemColuna($db, 'lancamentos', 'custo_fixo_id')) {
             $sets[] = 'custo_fixo_id=?';
             $params[] = empty($d['custo_fixo_id']) ? null : $d['custo_fixo_id'];
