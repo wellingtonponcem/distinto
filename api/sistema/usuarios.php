@@ -9,13 +9,12 @@ exigirAutenticacao();
 $db = Database::get();
 $metodo = $_SERVER['REQUEST_METHOD'];
 
-// Migração Automática
+// Migração Automática (Opcional, caso não tenha rodado)
 try {
     $stmt = $db->query("SHOW COLUMNS FROM users LIKE 'nivel'");
     if (!$stmt->fetch()) {
         $db->exec("ALTER TABLE users ADD COLUMN nivel INT NOT NULL DEFAULT 0");
-        // O primeiro usuário criado (provavelmente o dono) vira Admin
-        $db->exec("UPDATE users SET nivel = 1 ORDER BY criado_em ASC LIMIT 1");
+        $db->exec("UPDATE users SET nivel = 1 LIMIT 1");
     }
 } catch (Exception $e) {}
 
