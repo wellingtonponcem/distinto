@@ -10,10 +10,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     responderJson(['erro' => 'Método não permitido'], 405);
 }
 
-if (!GROQ_API_KEY) {
-    responderJson(['erro' => 'Groq API Key não configurada. Edite config/env.php e adicione sua GROQ_API_KEY.'], 503);
-}
-
 $briefing = lerCorpo();
 
 // Validar campos obrigatórios
@@ -26,6 +22,13 @@ if (empty($briefing['segmento'])) {
 
 // Buscar dados do banco para contextualizar o prompt
 $db = Database::get();
+
+$configDb = $db->query("SELECT groq_api_key FROM configuracao_empresa WHERE id='principal' LIMIT 1")->fetch();
+$apiKey = !empty($configDb['groq_api_key']) ? $configDb['groq_api_key'] : GROQ_API_KEY;
+
+if (!$apiKey) {
+    responderJson(['erro' => 'Groq API Key não configurada. Salve nas configurações do sistema ou edite o arquivo config/env.php.'], 503);
+}
 
 // Custos fixos mensais
 $custos = $db->query("SELECT nome, valor, recorrencia FROM custos_fixos WHERE ativo=1")->fetchAll();
@@ -119,7 +122,7 @@ curl_setopt_array($ch, [
     CURLOPT_POSTFIELDS     => $payload,
     CURLOPT_TIMEOUT        => 60,
     CURLOPT_HTTPHEADER     => [
-        'Authorization: Bearer ' . GROQ_API_KEY,
+        'Authorization: Bearer ' . $apiKey,
         'Content-Type: application/json',
     ],
 ]);

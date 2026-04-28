@@ -7,14 +7,28 @@ exigirAutenticacao();
 
 $tituloPagina = 'Configurações';
 $db = Database::get();
+
+try {
+    $stmt = $db->query("SHOW COLUMNS FROM configuracao_empresa LIKE 'groq_api_key'");
+    if (!$stmt->fetch()) {
+        $db->exec("ALTER TABLE configuracao_empresa ADD COLUMN groq_api_key VARCHAR(255) NULL");
+    }
+} catch (Exception $e) {}
+
 $config = $db->query("SELECT * FROM configuracao_empresa WHERE id='principal' LIMIT 1")->fetch();
 
 $sucesso = '';
 $erro = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $campos = ['nome','cnpj','telefone','email','endereco'];
-    $sets = implode(', ', array_map(fn($c) => "`$c` = ?", $campos));
     $vals = array_map(fn($c) => trim($_POST[$c] ?? ''), $campos);
+    
+    if (!empty($_POST['groq_api_key'])) {
+        $campos[] = 'groq_api_key';
+        $vals[] = trim($_POST['groq_api_key']);
+    }
+    
+    $sets = implode(', ', array_map(fn($c) => "`$c` = ?", $campos));
     $vals[] = 'principal';
     $stmt = $db->prepare("UPDATE configuracao_empresa SET $sets WHERE id = ?");
     $stmt->execute($vals);
@@ -66,6 +80,16 @@ include __DIR__ . '/includes/layout/head.php';
                     <label class="label">Endereço</label>
                     <textarea class="input" name="endereco" rows="2" placeholder="Rua, número, cidade, estado" style="resize:vertical;"><?= sanitizar($config['endereco'] ?? '') ?></textarea>
                 </div>
+                <div style="margin-bottom:24px; border-top:1px solid #334155; padding-top:20px;">
+                    <label class="label" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>Groq API Key</span>
+                        <?php if (!empty($config['groq_api_key'])): ?>
+                            <span style="font-size:12px; color:#10b981; font-weight:normal;">✓ Chave salva</span>
+                        <?php endif; ?>
+                    </label>
+                    <input class="input" type="password" name="groq_api_key" placeholder="<?= !empty($config['groq_api_key']) ? '••••••••••••••••••••••••••••••••' : 'gsk_...' ?>">
+                    <p style="font-size:12px; color:#6b7280; margin-top:6px;">Deixe em branco para manter a chave atual. Essa chave substitui a do arquivo .env.</p>
+                </div>
                 <button type="submit" class="btn-primary">
                     <i data-lucide="save" style="width:15px;height:15px;"></i> Salvar Configurações
                 </button>
@@ -86,8 +110,9 @@ include __DIR__ . '/includes/layout/head.php';
                 </div>
                 <div>
                     <div style="color:#6b7280; margin-bottom:2px;">Groq API Key</div>
-                    <div style="color:<?= GROQ_API_KEY ? '#10b981' : '#ef4444' ?>;">
-                        <?= GROQ_API_KEY ? '✓ Configurada' : '✗ Não configurada' ?>
+                    <?php $temGroq = !empty($config['groq_api_key']) || !empty(GROQ_API_KEY); ?>
+                    <div style="color:<?= $temGroq ? '#10b981' : '#ef4444' ?>;">
+                        <?= $temGroq ? '✓ Configurada' : '✗ Não configurada' ?>
                     </div>
                 </div>
                 <div>
@@ -95,9 +120,9 @@ include __DIR__ . '/includes/layout/head.php';
                     <div style="color:#94a3b8;"><?= PHP_VERSION ?></div>
                 </div>
             </div>
-            <?php if (!GROQ_API_KEY): ?>
+            <?php if (!$temGroq): ?>
             <div style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:8px; padding:12px; margin-top:16px; font-size:13px; color:#fbbf24;">
-                ⚠️ A Groq API Key não está configurada. Edite o arquivo <code>config/env.php</code> e adicione sua key para usar o Simulador IA.
+                ⚠️ A Groq API Key não está configurada. Insira sua chave acima ou edite o arquivo <code>config/env.php</code>.
             </div>
             <?php endif; ?>
         </div>

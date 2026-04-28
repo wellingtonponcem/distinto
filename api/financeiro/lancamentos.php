@@ -46,9 +46,9 @@ switch ($metodo) {
         $stmt = $db->prepare('UPDATE lancamentos SET tipo=?,descricao=?,valor=?,categoria=?,cliente_fornecedor=?,vencimento=?,modalidade=?,forma_pagamento=?,observacao=? WHERE id=?');
         $stmt->execute([
             $d['tipo'], $d['descricao'], $d['valor'], $d['categoria'] ?? 'outros',
-            $d['cliente_fornecedor'] ?? null, $d['vencimento'],
-            $d['modalidade'] ?? 'avista', $d['forma_pagamento'] ?? null,
-            $d['observacao'] ?? null, $d['id']
+            empty($d['cliente_fornecedor']) ? null : $d['cliente_fornecedor'], $d['vencimento'],
+            $d['modalidade'] ?? 'avista', empty($d['forma_pagamento']) ? null : $d['forma_pagamento'],
+            empty($d['observacao']) ? null : $d['observacao'], $d['id']
         ]);
         responderJson(['ok' => true]);
 
@@ -87,7 +87,7 @@ function criarCustoFixoFromLancamento(PDO $db, array $d): string {
     if (tabelaTemColuna($db, 'custos_fixos', 'forma_pagamento')) {
         $colunas[] = 'forma_pagamento';
         $valores[] = '?';
-        $params[] = $d['forma_pagamento'] ?? 'pix';
+        $params[] = empty($d['forma_pagamento']) ? 'pix' : $d['forma_pagamento'];
     }
 
     $stmt = $db->prepare('INSERT INTO custos_fixos (' . implode(',', $colunas) . ') VALUES (' . implode(',', $valores) . ')');
@@ -135,17 +135,18 @@ function inserirLancamento(PDO $db, string $id, array $d, float $valor, string $
     $valores = ['?','?','?','?','0','?','?','?',"'pendente'",'?','?','?','?','?','?','?'];
     $params = [
         $id, $d['tipo'], $d['descricao'], $valor,
-        $d['categoria'] ?? 'outros', $d['cliente_fornecedor'] ?? null,
+        $d['categoria'] ?? 'outros', empty($d['cliente_fornecedor']) ? null : $d['cliente_fornecedor'],
         $venc, $d['modalidade'] ?? 'avista',
         $totalParcelas, $parcelaAtual, $paiId,
-        $d['frequencia'] ?? null, $d['data_termino'] ?? null,
-        $d['observacao'] ?? null
+        empty($d['frequencia']) ? null : $d['frequencia'], 
+        empty($d['data_termino']) ? null : $d['data_termino'],
+        empty($d['observacao']) ? null : $d['observacao']
     ];
 
     if (tabelaTemColuna($db, 'lancamentos', 'forma_pagamento')) {
         $colunas[] = 'forma_pagamento';
         $valores[] = '?';
-        $params[] = $d['forma_pagamento'] ?? null;
+        $params[] = empty($d['forma_pagamento']) ? null : $d['forma_pagamento'];
     }
     if (tabelaTemColuna($db, 'lancamentos', 'custo_fixo_id')) {
         $colunas[] = 'custo_fixo_id';
