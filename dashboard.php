@@ -3,13 +3,11 @@ require_once __DIR__ . '/config/env.php';
 require_once __DIR__ . '/config/auth.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/helpers.php';
-require_once __DIR__ . '/includes/financeiro_custos.php';
 exigirAutenticacao();
 
 $tituloPagina = 'Dashboard';
 
 $db = Database::get();
-sincronizarLancamentosCustosFixos($db);
 $hoje = date('Y-m-d');
 $mesInicio = date('Y-m-01');
 $mesFim = date('Y-m-t');
