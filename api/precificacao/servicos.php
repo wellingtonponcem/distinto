@@ -28,6 +28,7 @@ switch ($metodo) {
         $rows = $db->query('SELECT * FROM servicos WHERE ativo=1 ORDER BY nome')->fetchAll();
         responderJson($rows);
 
+    case 'POST':
         $d = lerCorpo();
         if (empty($d['nome'])) responderJson(['erro' => 'Nome obrigatório'], 422);
         $id = gerarId();
