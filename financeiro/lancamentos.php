@@ -43,12 +43,17 @@ include __DIR__ . '/../includes/layout/head.php';
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; width:100%;">
                 <input class="input" type="text" x-model="filtros.busca" placeholder="Buscar por descrição ou cliente..." style="flex:1; min-width:200px;">
-                <select class="select" x-model="filtros.categoria" style="width:auto; min-width:140px;">
-                    <option value="">Todas as categorias</option>
-                    <template x-for="cat in categoriasDisponiveis" :key="cat">
-                        <option :value="cat" x-text="cat.charAt(0).toUpperCase() + cat.slice(1)"></option>
-                    </template>
-                </select>
+                <div style="display:flex; gap:6px;">
+                    <select class="select" x-model="filtros.categoria" style="width:auto; min-width:140px;">
+                        <option value="">Todas as categorias</option>
+                        <template x-for="cat in categoriasDisponiveis" :key="cat">
+                            <option :value="cat" x-text="cat.charAt(0).toUpperCase() + cat.slice(1)"></option>
+                        </template>
+                    </select>
+                    <button class="btn-secondary" @click="abrirGerenciarCategorias()" style="padding:6px 10px;" title="Gerenciar Categorias">
+                        <i data-lucide="settings-2" style="width:15px;height:15px;color:#94a3b8;"></i>
+                    </button>
+                </div>
                 <select class="select" x-model="filtros.status" style="width:auto; min-width:140px;">
                     <option value="">Todos os status</option>
                     <option value="pendente">Pendente</option>
@@ -386,6 +391,53 @@ include __DIR__ . '/../includes/layout/head.php';
         </div>
     </div>
 
+    <!-- Modal Gerenciar Categorias -->
+    <div class="modal-overlay" x-show="modalCategoriasAberto" x-cloak>
+        <div class="modal" style="max-width:500px; width:100%; max-height:80vh; display:flex; flex-direction:column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="font-size:17px; font-weight:600; color:#f1f5f9;">Gerenciar Categorias</h2>
+                <button @click="modalCategoriasAberto=false" style="color:#6b7280; background:none; border:none; cursor:pointer;">
+                    <i data-lucide="x" style="width:18px;height:18px;"></i>
+                </button>
+            </div>
+            
+            <div style="font-size:13px; color:#94a3b8; margin-bottom:16px;">
+                Aqui você pode renomear ou excluir as categorias. Excluir uma categoria moverá seus lançamentos para "outros".
+            </div>
+
+            <div style="flex:1; overflow-y:auto; margin-bottom:20px; border:1px solid #1e293b; border-radius:8px;">
+                <template x-for="cat in categoriasDisponiveis" :key="cat">
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #1e293b;">
+                        <template x-if="categoriaEditando !== cat">
+                            <div style="display:flex; align-items:center; width:100%; justify-content:space-between;">
+                                <span style="color:#e2e8f0; font-size:14px; text-transform:capitalize;" x-text="cat"></span>
+                                <div style="display:flex; gap:8px;">
+                                    <button @click="iniciarEdicaoCategoria(cat)" style="color:#6366f1; background:none; border:none; cursor:pointer; padding:4px;" title="Renomear">
+                                        <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+                                    </button>
+                                    <button @click="excluirCategoria(cat)" x-show="cat !== 'outros'" style="color:#ef4444; background:none; border:none; cursor:pointer; padding:4px;" title="Excluir">
+                                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="categoriaEditando === cat">
+                            <div style="display:flex; align-items:center; width:100%; gap:8px;">
+                                <input class="input" type="text" x-model="novoNomeCategoria" style="flex:1; padding:4px 8px; font-size:13px; min-height:30px;" @keyup.enter="salvarEdicaoCategoria()">
+                                <button class="btn-primary" @click="salvarEdicaoCategoria()" style="padding:4px 12px; font-size:12px;" :disabled="salvando">Salvar</button>
+                                <button class="btn-secondary" @click="categoriaEditando=null" style="padding:4px 12px; font-size:12px;" :disabled="salvando">Cancelar</button>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end;">
+                <button class="btn-secondary" @click="modalCategoriasAberto=false">Fechar</button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -406,13 +458,18 @@ function lancamentos() {
         categoriaCustom: '',
         mostrarCampoCustom: false,
         modalOfxAberto: false,
+        modalCategoriasAberto: false,
+        categoriaEditando: null,
+        novoNomeCategoria: '',
         uploadingOfx: false,
         ofxTransacoes: [],
 
         get categoriasDisponiveis() {
             const padrao = ['serviços', 'produtos', 'aluguel', 'impostos', 'folha', 'marketing', 'outros'];
+            let salvasLocal = [];
+            try { salvasLocal = JSON.parse(localStorage.getItem('distinto_categorias') || '[]'); } catch(e) {}
             const doBanco = this.lista.map(l => l.categoria).filter(c => c && c.trim() !== '');
-            const todas = [...padrao, ...doBanco];
+            const todas = [...padrao, ...salvasLocal, ...doBanco];
             return [...new Set(todas.map(c => c.toLowerCase()))].sort();
         },
 
@@ -570,6 +627,7 @@ function lancamentos() {
                         return;
                     }
                     payload.categoria = this.categoriaCustom.trim().toLowerCase();
+                    this.salvarCategoriaCustomizada(payload.categoria);
                 }
                 const metodo = this.form.id ? 'PUT' : 'POST';
                 const r = await fetch('<?= raizUrl('/api/financeiro/lancamentos.php') ?>', {
@@ -746,6 +804,7 @@ function lancamentos() {
                     let catFinal = txn.categoria || 'outros';
                     if (catFinal === '__custom__' && txn.categoriaCustom) {
                         catFinal = txn.categoriaCustom.trim().toLowerCase();
+                        this.salvarCategoriaCustomizada(catFinal);
                     } else if (catFinal === '__custom__') {
                         catFinal = 'outros';
                     }
