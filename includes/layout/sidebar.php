@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../config/database.php';
 $usuario = usuarioAtual();
 
 // Patch: Se o nível não estiver na sessão, tenta buscar no banco e atualizar a sessão
