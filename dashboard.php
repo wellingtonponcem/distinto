@@ -28,11 +28,11 @@ $resumo = $queryResumo->fetch();
 // Cálculo do Saldo Atual baseado na soma real dos bancos
 $stmtTotalBancos = $db->query("
     SELECT 
-        (SELECT SUM(saldo_inicial) FROM contas_bancarias WHERE ativo=1) +
-        (SELECT SUM(CASE WHEN tipo='receber' THEN valor_pago ELSE -valor_pago END) 
+        COALESCE((SELECT SUM(saldo_inicial) FROM contas_bancarias WHERE ativo=1), 0) +
+        COALESCE((SELECT SUM(CASE WHEN tipo='receber' THEN valor_pago ELSE -valor_pago END) 
          FROM lancamentos 
          WHERE status IN ('pago', 'efetivado') 
-         AND conta_id IN (SELECT id FROM contas_bancarias WHERE ativo=1)) as saldo_total
+         AND conta_id IN (SELECT id FROM contas_bancarias WHERE ativo=1)), 0) as saldo_total
 ");
 $saldoAtual = (float)$stmtTotalBancos->fetchColumn() ?: 0;
 
