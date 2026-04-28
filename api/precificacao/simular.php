@@ -148,7 +148,6 @@ curl_setopt_array($ch, [
 $resposta = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $erro     = curl_error($ch);
-curl_close($ch);
 
 if ($erro) {
     responderJson(['erro' => 'Falha na conexão com a API: ' . $erro], 502);
