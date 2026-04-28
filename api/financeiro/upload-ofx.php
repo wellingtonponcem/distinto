@@ -18,16 +18,16 @@ if (!isset($_FILES['arquivo']) || $_FILES['arquivo']['error'] !== UPLOAD_ERR_OK)
 
 $content = file_get_contents($_FILES['arquivo']['tmp_name']);
 
-// Basic OFX Parser
 $transactions = [];
-preg_match_all('/<STMTTRN>(.*?)<\/STMTTRN>/s', $content, $matches);
+$parts = preg_split('/<STMTTRN>/i', $content);
+array_shift($parts); // Remove the header
 
-foreach ($matches[1] as $txn) {
-    preg_match('/<TRNTYPE>(.*?)(?:\r|\n|<)/', $txn, $typeMatch);
-    preg_match('/<DTPOSTED>(.*?)(?:\r|\n|<)/', $txn, $dateMatch);
-    preg_match('/<TRNAMT>(.*?)(?:\r|\n|<)/', $txn, $amtMatch);
-    preg_match('/<FITID>(.*?)(?:\r|\n|<)/', $txn, $idMatch);
-    preg_match('/<MEMO>(.*?)(?:\r|\n|<)/', $txn, $memoMatch);
+foreach ($parts as $txn) {
+    preg_match('/<TRNTYPE>\s*(.*?)(?:\r|\n|<)/i', $txn, $typeMatch);
+    preg_match('/<DTPOSTED>\s*(.*?)(?:\r|\n|<)/i', $txn, $dateMatch);
+    preg_match('/<TRNAMT>\s*(.*?)(?:\r|\n|<)/i', $txn, $amtMatch);
+    preg_match('/<FITID>\s*(.*?)(?:\r|\n|<)/i', $txn, $idMatch);
+    preg_match('/<MEMO>\s*(.*?)(?:\r|\n|<)/i', $txn, $memoMatch);
 
     $dateStr = substr(trim($dateMatch[1] ?? ''), 0, 8);
     $date = '';
@@ -54,6 +54,12 @@ foreach ($matches[1] as $txn) {
             'descricao' => $memo,
         ];
     }
+}
+
+if (empty($transactions)) {
+    http_response_code(400);
+    echo json_encode(['erro' => 'Nenhuma transação encontrada no arquivo OFX.']);
+    exit;
 }
 
 echo json_encode(['ok' => true, 'transacoes' => $transactions]);
