@@ -1,6 +1,18 @@
 <?php
 $usuario = usuarioAtual();
 
+// Patch: Se o nível não estiver na sessão, tenta buscar no banco e atualizar a sessão
+if (!isset($_SESSION['user_nivel'])) {
+    $db = Database::get();
+    $stmt = $db->prepare("SELECT nivel FROM users WHERE id = ?");
+    $stmt->execute([$usuario['id']]);
+    $nivel = $stmt->fetchColumn();
+    if ($nivel !== false) {
+        $_SESSION['user_nivel'] = (int)$nivel;
+        $usuario['nivel'] = (int)$nivel;
+    }
+}
+
 $paginaAtual = $_SERVER['SCRIPT_NAME'];
 function menuAtivo(string $path): string {
     global $paginaAtual;

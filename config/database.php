@@ -14,6 +14,15 @@ class Database {
                     PDO::ATTR_EMULATE_PREPARES => false,
                     PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
                 ]);
+
+                // Migração de Nível de Usuário
+                try {
+                    $stmt = self::$instance->query("SHOW COLUMNS FROM users LIKE 'nivel'");
+                    if (!$stmt->fetch()) {
+                        self::$instance->exec("ALTER TABLE users ADD COLUMN nivel INT NOT NULL DEFAULT 0");
+                        self::$instance->exec("UPDATE users SET nivel = 1 ORDER BY id ASC LIMIT 1");
+                    }
+                } catch (Exception $e) {}
             } catch (PDOException $e) {
                 http_response_code(500);
                 die(json_encode(['erro' => 'Falha na conexão com o banco de dados.']));
