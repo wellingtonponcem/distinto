@@ -191,6 +191,7 @@ function custosFixos() {
                 this.lista = await r.json();
             } catch(e) { toast('Erro ao carregar', 'erro'); }
             this.carregando = false;
+            this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
         },
 
         abrirModal(item = null) {
