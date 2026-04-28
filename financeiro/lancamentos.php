@@ -370,8 +370,9 @@ include __DIR__ . '/../includes/layout/head.php';
                                         </template>
                                         <option value="__custom__" style="font-weight:bold; color:#6366f1;">+ Nova categoria...</option>
                                     </select>
-                                    <div x-show="txn.acao_id === 'novo' && txn.categoria === '__custom__'" style="margin-top:6px;">
-                                        <input class="input" type="text" x-model="txn.categoriaCustom" placeholder="Digite o nome..." style="width:100%; padding:4px 8px; font-size:12px;">
+                                    <div x-show="txn.acao_id === 'novo' && txn.categoria === '__custom__'" style="margin-top:6px; display:flex; gap:4px;">
+                                        <input class="input" type="text" x-model="txn.categoriaCustom" placeholder="Digite o nome..." style="flex:1; padding:4px 8px; font-size:12px;" @keyup.enter="adicionarCategoriaNoOfx(txn)">
+                                        <button class="btn-primary" @click.prevent="adicionarCategoriaNoOfx(txn)" style="padding:4px 8px; height:28px;" title="Adicionar para todos"><i data-lucide="check" style="width:14px;height:14px;"></i></button>
                                     </div>
                                     <span x-show="txn.acao_id !== 'novo' && txn.acao_id !== 'ignorar'" style="font-size:11px; color:#6b7280;">Automático</span>
                                     <span x-show="txn.acao_id === 'ignorar'" style="font-size:11px; color:#6b7280;">-</span>
@@ -461,6 +462,7 @@ function lancamentos() {
         modalCategoriasAberto: false,
         categoriaEditando: null,
         novoNomeCategoria: '',
+        categoriasDinamicas: [],
         uploadingOfx: false,
         ofxTransacoes: [],
 
@@ -469,8 +471,28 @@ function lancamentos() {
             let salvasLocal = [];
             try { salvasLocal = JSON.parse(localStorage.getItem('distinto_categorias') || '[]'); } catch(e) {}
             const doBanco = this.lista.map(l => l.categoria).filter(c => c && c.trim() !== '');
-            const todas = [...padrao, ...salvasLocal, ...doBanco];
+            const todas = [...padrao, ...salvasLocal, ...doBanco, ...this.categoriasDinamicas];
             return [...new Set(todas.map(c => c.toLowerCase()))].sort();
+        },
+
+        salvarCategoriaCustomizada(cat) {
+            let salvas = [];
+            try { salvas = JSON.parse(localStorage.getItem('distinto_categorias') || '[]'); } catch(e){}
+            if (!salvas.includes(cat)) {
+                salvas.push(cat);
+                localStorage.setItem('distinto_categorias', JSON.stringify(salvas));
+                if (!this.categoriasDinamicas.includes(cat)) this.categoriasDinamicas.push(cat);
+            }
+        },
+
+        adicionarCategoriaNoOfx(txn) {
+            if (!txn.categoriaCustom) return;
+            const cat = txn.categoriaCustom.trim().toLowerCase();
+            if (!cat) return;
+            this.salvarCategoriaCustomizada(cat);
+            txn.categoria = cat;
+            txn.categoriaCustom = '';
+            this.$nextTick(() => { if(window.lucide) lucide.createIcons(); });
         },
 
         get todosSelecionados() {
