@@ -8,7 +8,7 @@ $tituloPagina = 'Lançamentos';
 include __DIR__ . '/../includes/layout/head.php';
 ?>
 
-<div id="app-wrapper" style="display:flex; min-height:100vh;" x-data="lancamentos()">
+<div id="app-wrapper" style="display:flex; min-height:100vh;" x-data="lancamentos()" x-effect="lancamentosFiltrados; $nextTick(() => { if (window.lucide) lucide.createIcons(); })">
     <?php include __DIR__ . '/../includes/layout/sidebar.php'; ?>
 
     <main id="main-content" style="flex:1; padding:28px 32px; overflow-y:auto; max-width:calc(100vw - 240px);">
@@ -19,9 +19,14 @@ include __DIR__ . '/../includes/layout/head.php';
                 <h1 style="font-size:22px; font-weight:700; color:#f1f5f9;">Lançamentos</h1>
                 <p style="font-size:14px; color:#6b7280; margin-top:2px;">Contas a pagar e a receber</p>
             </div>
-            <button class="btn-primary" @click="abrirModal()">
-                <i data-lucide="plus" style="width:15px;height:15px;"></i> Novo Lançamento
-            </button>
+            <div style="display:flex; gap:10px;">
+                <button x-show="selecionados.length > 0" class="btn-secondary" @click="excluirSelecionados()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);" x-cloak>
+                    <i data-lucide="trash-2" style="width:15px;height:15px;"></i> Excluir (<span x-text="selecionados.length"></span>)
+                </button>
+                <button class="btn-primary" @click="abrirModal()">
+                    <i data-lucide="plus" style="width:15px;height:15px;"></i> Novo Lançamento
+                </button>
+            </div>
         </div>
 
         <!-- Filtros -->
@@ -54,7 +59,8 @@ include __DIR__ . '/../includes/layout/head.php';
 
         <!-- Tabela -->
         <div class="card" style="overflow:hidden;">
-            <div class="table-header" style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr 100px;">
+            <div class="table-header" style="display:grid; grid-template-columns:30px 2fr 1fr 1fr 1fr 1fr 100px; align-items:center;">
+                <input type="checkbox" style="accent-color:#111" :checked="todosSelecionados" @change="toggleTodos()">
                 <span>Descrição</span><span>Vencimento</span><span>Valor</span><span>Pago</span><span>Status</span><span style="text-align:right;">Ações</span>
             </div>
 
@@ -70,14 +76,17 @@ include __DIR__ . '/../includes/layout/head.php';
             </template>
 
             <template x-for="l in lancamentosFiltrados" :key="l.id">
-                <div class="table-row" style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr 100px; align-items:center;">
+                <div class="table-row" style="display:grid; grid-template-columns:30px 2fr 1fr 1fr 1fr 1fr 100px; align-items:center;">
+                    <div class="table-cell">
+                        <input type="checkbox" :value="l.id" x-model="selecionados" style="accent-color:#111">
+                    </div>
                     <div class="table-cell">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <span :style="l.tipo==='receber' ? 'color:#10b981' : 'color:#ef4444'">
                                 <i :data-lucide="l.tipo==='receber' ? 'arrow-down-left' : 'arrow-up-right'" style="width:14px;height:14px;"></i>
                             </span>
                             <div>
-                                <div style="color:#e2e8f0; font-weight:500;" x-text="l.descricao"></div>
+                                <div style="color:#e2e8f0; font-weight:500; cursor:pointer;" @click="abrirModal(l)" x-text="l.descricao" class="hover-underline"></div>
                                 <div style="color:#6b7280; font-size:12px;" x-text="l.cliente_fornecedor || l.categoria"></div>
                             </div>
                         </div>
@@ -286,9 +295,22 @@ function lancamentos() {
         lancamentoBaixa: null,
         valorBaixa: '',
         filtros: { tipo: '', status: '', data_inicio: '', data_fim: '' },
+        selecionados: [],
         form: {},
         categoriaCustom: '',
         mostrarCampoCustom: false,
+
+        get todosSelecionados() {
+            return this.lancamentosFiltrados.length > 0 && this.selecionados.length === this.lancamentosFiltrados.length;
+        },
+
+        toggleTodos() {
+            if (this.todosSelecionados) {
+                this.selecionados = [];
+            } else {
+                this.selecionados = this.lancamentosFiltrados.map(l => l.id);
+            }
+        },
 
         get lancamentosFiltrados() {
             return this.lista.filter(l => {
@@ -439,9 +461,34 @@ function lancamentos() {
         async excluir(id) {
             if (!confirm('Excluir este lançamento?')) return;
             try {
-                const r = await fetch('<?= raizUrl('/api/financeiro/lancamentos.php') ?>?id=' + id, { method: 'DELETE' });
+                const r = await fetch('<?= raizUrl('/api/financeiro/lancamentos.php') ?>', { 
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: [id] })
+                });
                 if (r.ok) {
                     toast('Lançamento excluído', 'sucesso');
+                    this.selecionados = this.selecionados.filter(s => s !== id);
+                    await this.carregarLancamentos();
+                } else {
+                    const res = await r.json();
+                    toast(res.erro || 'Erro ao excluir', 'erro');
+                }
+            } catch(e) { toast('Erro de conexão', 'erro'); }
+        },
+
+        async excluirSelecionados() {
+            if (this.selecionados.length === 0) return;
+            if (!confirm(`Excluir ${this.selecionados.length} lançamento(s)?`)) return;
+            try {
+                const r = await fetch('<?= raizUrl('/api/financeiro/lancamentos.php') ?>', { 
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: this.selecionados })
+                });
+                if (r.ok) {
+                    toast(`${this.selecionados.length} lançamento(s) excluído(s)`, 'sucesso');
+                    this.selecionados = [];
                     await this.carregarLancamentos();
                 } else {
                     const res = await r.json();
@@ -471,5 +518,9 @@ function lancamentos() {
     };
 }
 </script>
+
+<style>
+.hover-underline:hover { text-decoration: underline; }
+</style>
 
 <?php include __DIR__ . '/../includes/layout/footer.php'; ?>

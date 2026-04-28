@@ -54,10 +54,15 @@ try {
         responderJson(['ok' => true]);
 
     case 'DELETE':
-        $id = $_GET['id'] ?? '';
-        if (!$id) responderJson(['erro' => 'ID obrigatório'], 422);
-        $db->prepare('DELETE FROM lancamentos WHERE lancamento_pai_id=?')->execute([$id]);
-        $db->prepare('DELETE FROM lancamentos WHERE id=?')->execute([$id]);
+        $corpo = json_decode(file_get_contents('php://input'), true) ?: [];
+        $ids = !empty($corpo['ids']) ? $corpo['ids'] : (!empty($_GET['id']) ? [$_GET['id']] : []);
+        if (empty($ids)) responderJson(['erro' => 'ID obrigatório'], 422);
+
+        $inQuery = implode(',', array_fill(0, count($ids), '?'));
+        // Excluir filhos
+        $db->prepare("DELETE FROM lancamentos WHERE lancamento_pai_id IN ($inQuery)")->execute($ids);
+        // Excluir pais/itens
+        $db->prepare("DELETE FROM lancamentos WHERE id IN ($inQuery)")->execute($ids);
         responderJson(['ok' => true]);
 
         default:
