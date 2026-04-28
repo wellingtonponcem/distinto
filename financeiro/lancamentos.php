@@ -40,13 +40,9 @@ include __DIR__ . '/../includes/layout/head.php';
                 <input class="input" type="text" x-model="filtros.busca" placeholder="Buscar por descrição ou cliente..." style="flex:1; min-width:200px;">
                 <select class="select" x-model="filtros.categoria" style="width:auto; min-width:140px;">
                     <option value="">Todas as categorias</option>
-                    <option value="servicos">Serviços</option>
-                    <option value="produtos">Produtos</option>
-                    <option value="aluguel">Aluguel</option>
-                    <option value="impostos">Impostos</option>
-                    <option value="folha">Folha</option>
-                    <option value="marketing">Marketing</option>
-                    <option value="outros">Outros</option>
+                    <template x-for="cat in categoriasDisponiveis" :key="cat">
+                        <option :value="cat" x-text="cat.charAt(0).toUpperCase() + cat.slice(1)"></option>
+                    </template>
                 </select>
                 <select class="select" x-model="filtros.status" style="width:auto; min-width:140px;">
                     <option value="">Todos os status</option>
@@ -207,14 +203,11 @@ include __DIR__ . '/../includes/layout/head.php';
                     <div>
                         <label class="label">Categoria</label>
                         <select class="select" x-model="form.categoria" @change="mostrarCampoCustom = form.categoria === '__custom__'; categoriaCustom = '';">
-                            <option value="servicos">Serviços</option>
-                            <option value="produtos">Produtos</option>
-                            <option value="aluguel">Aluguel</option>
-                            <option value="impostos">Impostos</option>
-                            <option value="folha">Folha</option>
-                            <option value="marketing">Marketing</option>
-                            <option value="outros">Outros</option>
-                            <option value="__custom__">+ Nova categoria...</option>
+                            <option value="">Selecione...</option>
+                            <template x-for="cat in categoriasDisponiveis" :key="cat">
+                                <option :value="cat" x-text="cat.charAt(0).toUpperCase() + cat.slice(1)"></option>
+                            </template>
+                            <option value="__custom__" style="font-weight:bold; color:#6366f1;">+ Nova categoria...</option>
                         </select>
                         <div x-show="mostrarCampoCustom" style="margin-top:8px;">
                             <input class="input" x-model="categoriaCustom" placeholder="Digite a categoria">
@@ -336,6 +329,13 @@ function lancamentos() {
         form: {},
         categoriaCustom: '',
         mostrarCampoCustom: false,
+
+        get categoriasDisponiveis() {
+            const padrao = ['serviços', 'produtos', 'aluguel', 'impostos', 'folha', 'marketing', 'outros'];
+            const doBanco = this.lista.map(l => l.categoria).filter(c => c && c.trim() !== '');
+            const todas = [...padrao, ...doBanco];
+            return [...new Set(todas.map(c => c.toLowerCase()))].sort();
+        },
 
         get todosSelecionados() {
             return this.lancamentosFiltrados.length > 0 && this.selecionados.length === this.lancamentosFiltrados.length;
