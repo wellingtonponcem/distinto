@@ -1,14 +1,18 @@
 <?php
 
 function garantirEstruturaFinanceira(PDO $db): void {
-    garantirColuna($db, 'custos_fixos', 'dia_vencimento', "INT NOT NULL DEFAULT 5");
-    garantirColuna($db, 'custos_fixos', 'forma_pagamento', "VARCHAR(50) NULL DEFAULT 'pix'");
-    garantirColuna($db, 'lancamentos', 'forma_pagamento', "VARCHAR(50) NULL");
-    garantirColuna($db, 'lancamentos', 'custo_fixo_id', "VARCHAR(32) NULL");
+    try {
+        garantirColuna($db, 'custos_fixos', 'dia_vencimento', "INT NOT NULL DEFAULT 5");
+        garantirColuna($db, 'custos_fixos', 'forma_pagamento', "VARCHAR(50) NULL DEFAULT 'pix'");
+        garantirColuna($db, 'lancamentos', 'forma_pagamento', "VARCHAR(50) NULL");
+        garantirColuna($db, 'lancamentos', 'custo_fixo_id', "VARCHAR(32) NULL");
 
-    $categoria = colunaInfo($db, 'custos_fixos', 'categoria');
-    if ($categoria && substr(strtolower($categoria['Type']), 0, 5) === 'enum(') {
-        $db->exec("ALTER TABLE custos_fixos MODIFY categoria VARCHAR(100) NOT NULL DEFAULT 'outros'");
+        $categoria = colunaInfo($db, 'custos_fixos', 'categoria');
+        if ($categoria && substr(strtolower($categoria['Type']), 0, 5) === 'enum(') {
+            $db->exec("ALTER TABLE custos_fixos MODIFY categoria VARCHAR(100) NOT NULL DEFAULT 'outros'");
+        }
+    } catch (Exception $e) {
+        // Em producao, a falta de permissao para ALTER nao pode derrubar o sistema.
     }
 }
 
@@ -21,17 +25,32 @@ function colunaInfo(PDO $db, string $tabela, string $coluna): ?array {
     $tabelasPermitidas = ['custos_fixos', 'lancamentos'];
     if (!in_array($tabela, $tabelasPermitidas, true)) return null;
 
-    $stmt = $db->prepare("SHOW COLUMNS FROM {$tabela} LIKE ?");
-    $stmt->execute([$coluna]);
-    $row = $stmt->fetch();
-    return $row ?: null;
+    try {
+        $stmt = $db->prepare("SHOW COLUMNS FROM {$tabela} LIKE ?");
+        $stmt->execute([$coluna]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+function tabelaTemColuna(PDO $db, string $tabela, string $coluna): bool {
+    return colunaInfo($db, $tabela, $coluna) !== null;
 }
 
 function sincronizarLancamentosCustosFixos(PDO $db, int $meses = 12): void {
     garantirEstruturaFinanceira($db);
 
+    $temDia = tabelaTemColuna($db, 'custos_fixos', 'dia_vencimento');
+    $temFormaCusto = tabelaTemColuna($db, 'custos_fixos', 'forma_pagamento');
+
+    $campos = ['id', 'nome', 'valor', 'categoria', 'recorrencia'];
+    if ($temDia) $campos[] = 'dia_vencimento';
+    if ($temFormaCusto) $campos[] = 'forma_pagamento';
+
     $custos = $db->query("
-        SELECT id, nome, valor, categoria, recorrencia, dia_vencimento, forma_pagamento
+        SELECT " . implode(', ', $campos) . "
         FROM custos_fixos
         WHERE ativo = 1
         ORDER BY nome
@@ -53,36 +72,64 @@ function gerarLancamentosParaCustoFixo(PDO $db, array $custo, int $meses = 12): 
         $venc->setDate((int)$venc->format('Y'), (int)$venc->format('m'), $dia);
 
         if ($venc < $hoje) continue;
-        if (($custo['recorrencia'] ?? 'mensal') === 'anual' && $i > 0 && $venc->format('m') !== $base->format('m')) continue;
-        if (existeLancamentoCustoFixoNoMes($db, $custo['id'], $venc)) continue;
+        if (($custo['recorrencia'] ?? 'mensal') === 'anual' && $i > 0) continue;
+        if (existeLancamentoCustoFixoNoMes($db, $custo, $venc)) continue;
 
-        $stmt = $db->prepare('
-            INSERT INTO lancamentos
-                (id,tipo,descricao,valor,valor_pago,categoria,vencimento,status,modalidade,forma_pagamento,custo_fixo_id)
-            VALUES
-                (?,\'pagar\',?,?,0,?,?,\'pendente\',\'avista\',?,?)
-        ');
-        $stmt->execute([
-            gerarId(),
-            $custo['nome'],
-            $custo['valor'],
-            $custo['categoria'] ?? 'outros',
-            $venc->format('Y-m-d'),
-            $custo['forma_pagamento'] ?? 'pix',
-            $custo['id'],
-        ]);
+        inserirContaPagarCustoFixo($db, $custo, $venc);
     }
 }
 
-function existeLancamentoCustoFixoNoMes(PDO $db, string $custoId, DateTime $venc): bool {
+function existeLancamentoCustoFixoNoMes(PDO $db, array $custo, DateTime $venc): bool {
+    if (tabelaTemColuna($db, 'lancamentos', 'custo_fixo_id')) {
+        $stmt = $db->prepare("
+            SELECT id FROM lancamentos
+            WHERE custo_fixo_id = ?
+              AND DATE_FORMAT(vencimento, '%Y-%m') = ?
+              AND status != 'cancelado'
+            LIMIT 1
+        ");
+        $stmt->execute([$custo['id'], $venc->format('Y-m')]);
+        return (bool)$stmt->fetch();
+    }
+
     $stmt = $db->prepare("
-        SELECT id
-        FROM lancamentos
-        WHERE custo_fixo_id = ?
+        SELECT id FROM lancamentos
+        WHERE tipo = 'pagar'
+          AND descricao = ?
           AND DATE_FORMAT(vencimento, '%Y-%m') = ?
           AND status != 'cancelado'
         LIMIT 1
     ");
-    $stmt->execute([$custoId, $venc->format('Y-m')]);
+    $stmt->execute([$custo['nome'], $venc->format('Y-m')]);
     return (bool)$stmt->fetch();
+}
+
+function inserirContaPagarCustoFixo(PDO $db, array $custo, DateTime $venc): void {
+    $temFormaLanc = tabelaTemColuna($db, 'lancamentos', 'forma_pagamento');
+    $temCustoId = tabelaTemColuna($db, 'lancamentos', 'custo_fixo_id');
+
+    $colunas = ['id', 'tipo', 'descricao', 'valor', 'valor_pago', 'categoria', 'vencimento', 'status', 'modalidade'];
+    $valoresSql = ['?', "'pagar'", '?', '?', '0', '?', '?', "'pendente'", "'avista'"];
+    $params = [
+        gerarId(),
+        $custo['nome'],
+        $custo['valor'],
+        $custo['categoria'] ?? 'outros',
+        $venc->format('Y-m-d'),
+    ];
+
+    if ($temFormaLanc) {
+        $colunas[] = 'forma_pagamento';
+        $valoresSql[] = '?';
+        $params[] = $custo['forma_pagamento'] ?? 'pix';
+    }
+
+    if ($temCustoId) {
+        $colunas[] = 'custo_fixo_id';
+        $valoresSql[] = '?';
+        $params[] = $custo['id'];
+    }
+
+    $stmt = $db->prepare('INSERT INTO lancamentos (' . implode(',', $colunas) . ') VALUES (' . implode(',', $valoresSql) . ')');
+    $stmt->execute($params);
 }

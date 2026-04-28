@@ -74,8 +74,24 @@ function criarCustoFixoFromLancamento(PDO $db, array $d): string {
     $id  = gerarId();
     $dia = (int)date('d', strtotime($d['vencimento']));
     $dia = max(1, min(28, $dia));
-    $stmt = $db->prepare('INSERT INTO custos_fixos (id,nome,valor,categoria,recorrencia,dia_vencimento,forma_pagamento,ativo) VALUES (?,?,?,?,\'mensal\',?,?,1)');
-    $stmt->execute([$id, $d['descricao'], $d['valor'], $d['categoria'] ?? 'outros', $dia, $d['forma_pagamento'] ?? 'pix']);
+
+    $colunas = ['id', 'nome', 'valor', 'categoria', 'recorrencia', 'ativo'];
+    $valores = ['?', '?', '?', '?', "'mensal'", '1'];
+    $params = [$id, $d['descricao'], $d['valor'], $d['categoria'] ?? 'outros'];
+
+    if (tabelaTemColuna($db, 'custos_fixos', 'dia_vencimento')) {
+        $colunas[] = 'dia_vencimento';
+        $valores[] = '?';
+        $params[] = $dia;
+    }
+    if (tabelaTemColuna($db, 'custos_fixos', 'forma_pagamento')) {
+        $colunas[] = 'forma_pagamento';
+        $valores[] = '?';
+        $params[] = $d['forma_pagamento'] ?? 'pix';
+    }
+
+    $stmt = $db->prepare('INSERT INTO custos_fixos (' . implode(',', $colunas) . ') VALUES (' . implode(',', $valores) . ')');
+    $stmt->execute($params);
     return $id;
 }
 
@@ -115,18 +131,28 @@ function criarLancamento(PDO $db, array $d): void {
 }
 
 function inserirLancamento(PDO $db, string $id, array $d, float $valor, string $venc, ?string $paiId = null, int $parcelaAtual = 1, ?int $totalParcelas = null): void {
-    $stmt = $db->prepare('
-        INSERT INTO lancamentos (id,tipo,descricao,valor,valor_pago,categoria,cliente_fornecedor,vencimento,status,modalidade,total_parcelas,parcela_atual,lancamento_pai_id,frequencia,data_termino,observacao,forma_pagamento,custo_fixo_id)
-        VALUES (?,?,?,?,0,?,?,?,\'pendente\',?,?,?,?,?,?,?,?,?)
-    ');
-    $stmt->execute([
+    $colunas = ['id','tipo','descricao','valor','valor_pago','categoria','cliente_fornecedor','vencimento','status','modalidade','total_parcelas','parcela_atual','lancamento_pai_id','frequencia','data_termino','observacao'];
+    $valores = ['?','?','?','?','0','?','?','?',"'pendente'",'?','?','?','?','?','?','?'];
+    $params = [
         $id, $d['tipo'], $d['descricao'], $valor,
         $d['categoria'] ?? 'outros', $d['cliente_fornecedor'] ?? null,
         $venc, $d['modalidade'] ?? 'avista',
         $totalParcelas, $parcelaAtual, $paiId,
         $d['frequencia'] ?? null, $d['data_termino'] ?? null,
-        $d['observacao'] ?? null,
-        $d['forma_pagamento'] ?? null,
-        $d['custo_fixo_id'] ?? null,
-    ]);
+        $d['observacao'] ?? null
+    ];
+
+    if (tabelaTemColuna($db, 'lancamentos', 'forma_pagamento')) {
+        $colunas[] = 'forma_pagamento';
+        $valores[] = '?';
+        $params[] = $d['forma_pagamento'] ?? null;
+    }
+    if (tabelaTemColuna($db, 'lancamentos', 'custo_fixo_id')) {
+        $colunas[] = 'custo_fixo_id';
+        $valores[] = '?';
+        $params[] = $d['custo_fixo_id'] ?? null;
+    }
+
+    $stmt = $db->prepare('INSERT INTO lancamentos (' . implode(',', $colunas) . ') VALUES (' . implode(',', $valores) . ')');
+    $stmt->execute($params);
 }

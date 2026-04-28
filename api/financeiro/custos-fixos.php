@@ -22,21 +22,27 @@ switch ($metodo) {
         validarCustoFixo($d);
 
         $id = gerarId();
-        $stmt = $db->prepare('
-            INSERT INTO custos_fixos
-                (id,nome,valor,categoria,recorrencia,dia_vencimento,forma_pagamento,ativo)
-            VALUES
-                (?,?,?,?,?,?,?,1)
-        ');
-        $stmt->execute([
+        $colunas = ['id', 'nome', 'valor', 'categoria', 'recorrencia', 'ativo'];
+        $valores = ['?', '?', '?', '?', '?', '1'];
+        $params = [
             $id,
             $d['nome'],
             $d['valor'],
             $d['categoria'] ?? 'outros',
             $d['recorrencia'] ?? 'mensal',
-            $d['dia_vencimento'] ?? 5,
-            $d['forma_pagamento'] ?? 'pix',
-        ]);
+        ];
+        if (tabelaTemColuna($db, 'custos_fixos', 'dia_vencimento')) {
+            $colunas[] = 'dia_vencimento';
+            $valores[] = '?';
+            $params[] = $d['dia_vencimento'] ?? 5;
+        }
+        if (tabelaTemColuna($db, 'custos_fixos', 'forma_pagamento')) {
+            $colunas[] = 'forma_pagamento';
+            $valores[] = '?';
+            $params[] = $d['forma_pagamento'] ?? 'pix';
+        }
+        $stmt = $db->prepare('INSERT INTO custos_fixos (' . implode(',', $colunas) . ') VALUES (' . implode(',', $valores) . ')');
+        $stmt->execute($params);
 
         $d['id'] = $id;
         gerarLancamentosParaCustoFixo($db, $d);
@@ -47,21 +53,25 @@ switch ($metodo) {
         if (empty($d['id'])) responderJson(['erro' => 'ID obrigatorio'], 422);
         validarCustoFixo($d);
 
-        $stmt = $db->prepare('
-            UPDATE custos_fixos
-            SET nome=?, valor=?, categoria=?, recorrencia=?, dia_vencimento=?, forma_pagamento=?, ativo=?
-            WHERE id=?
-        ');
-        $stmt->execute([
+        $sets = ['nome=?', 'valor=?', 'categoria=?', 'recorrencia=?', 'ativo=?'];
+        $params = [
             $d['nome'],
             $d['valor'],
             $d['categoria'] ?? 'outros',
             $d['recorrencia'] ?? 'mensal',
-            $d['dia_vencimento'] ?? 5,
-            $d['forma_pagamento'] ?? 'pix',
             $d['ativo'] ?? 1,
-            $d['id'],
-        ]);
+        ];
+        if (tabelaTemColuna($db, 'custos_fixos', 'dia_vencimento')) {
+            $sets[] = 'dia_vencimento=?';
+            $params[] = $d['dia_vencimento'] ?? 5;
+        }
+        if (tabelaTemColuna($db, 'custos_fixos', 'forma_pagamento')) {
+            $sets[] = 'forma_pagamento=?';
+            $params[] = $d['forma_pagamento'] ?? 'pix';
+        }
+        $params[] = $d['id'];
+        $stmt = $db->prepare('UPDATE custos_fixos SET ' . implode(', ', $sets) . ' WHERE id=?');
+        $stmt->execute($params);
 
         atualizarLancamentosFuturos($db, $d['id'], $d);
         sincronizarLancamentosCustosFixos($db);
@@ -70,12 +80,14 @@ switch ($metodo) {
     case 'DELETE':
         $id = $_GET['id'] ?? '';
         if (!$id) responderJson(['erro' => 'ID obrigatorio'], 422);
-        $db->prepare("
-            DELETE FROM lancamentos
-            WHERE custo_fixo_id=?
-              AND status IN ('pendente','atrasado')
-              AND vencimento >= CURDATE()
-        ")->execute([$id]);
+        if (tabelaTemColuna($db, 'lancamentos', 'custo_fixo_id')) {
+            $db->prepare("
+                DELETE FROM lancamentos
+                WHERE custo_fixo_id=?
+                  AND status IN ('pendente','atrasado')
+                  AND vencimento >= CURDATE()
+            ")->execute([$id]);
+        }
         $db->prepare('DELETE FROM custos_fixos WHERE id=?')->execute([$id]);
         responderJson(['ok' => true]);
 
@@ -90,18 +102,26 @@ function validarCustoFixo(array $d): void {
 }
 
 function atualizarLancamentosFuturos(PDO $db, string $custoId, array $d): void {
+    if (!tabelaTemColuna($db, 'lancamentos', 'custo_fixo_id')) return;
+
+    $sets = ['descricao=?', 'valor=?', 'categoria=?'];
+    $params = [
+        $d['nome'],
+        $d['valor'],
+        $d['categoria'] ?? 'outros',
+    ];
+    if (tabelaTemColuna($db, 'lancamentos', 'forma_pagamento')) {
+        $sets[] = 'forma_pagamento=?';
+        $params[] = $d['forma_pagamento'] ?? 'pix';
+    }
+    $params[] = $custoId;
+
     $stmt = $db->prepare("
         UPDATE lancamentos
-        SET descricao=?, valor=?, categoria=?, forma_pagamento=?
+        SET " . implode(', ', $sets) . "
         WHERE custo_fixo_id=?
           AND status IN ('pendente','atrasado')
           AND vencimento >= CURDATE()
     ");
-    $stmt->execute([
-        $d['nome'],
-        $d['valor'],
-        $d['categoria'] ?? 'outros',
-        $d['forma_pagamento'] ?? 'pix',
-        $custoId,
-    ]);
+    $stmt->execute($params);
 }

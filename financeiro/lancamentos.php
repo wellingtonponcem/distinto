@@ -155,7 +155,7 @@ include __DIR__ . '/../includes/layout/head.php';
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
                     <div>
                         <label class="label">Categoria</label>
-                        <select class="select" x-model="form.categoria">
+                        <select class="select" x-model="form.categoria" @change="mostrarCampoCustom = form.categoria === '__custom__'; categoriaCustom = '';">
                             <option value="servicos">Serviços</option>
                             <option value="produtos">Produtos</option>
                             <option value="aluguel">Aluguel</option>
@@ -163,7 +163,11 @@ include __DIR__ . '/../includes/layout/head.php';
                             <option value="folha">Folha</option>
                             <option value="marketing">Marketing</option>
                             <option value="outros">Outros</option>
+                            <option value="__custom__">+ Nova categoria...</option>
                         </select>
+                        <div x-show="mostrarCampoCustom" style="margin-top:8px;">
+                            <input class="input" x-model="categoriaCustom" placeholder="Digite a categoria">
+                        </div>
                     </div>
                     <div>
                         <label class="label">Cliente / Fornecedor</label>
@@ -219,7 +223,7 @@ include __DIR__ . '/../includes/layout/head.php';
                         <span style="font-size:13px; color:#c4b5fd; font-weight:500;">Salvar também como Custo Fixo</span>
                     </label>
                     <p x-show="form.e_custo_fixo" style="font-size:12px; color:#a78bfa; margin-top:6px; margin-left:26px;">
-                        Será criado um registro em Custos Fixos com o mesmo nome, valor e categoria — vencendo todo mês no dia <strong x-text="form.vencimento ? new Date(form.vencimento + 'T00:00:00').getDate() : '?'"></strong>.
+                        Este lancamento sera salvo em Custos Fixos e tambem gerara contas a pagar futuras, todo mes no dia <strong x-text="form.vencimento ? new Date(form.vencimento + 'T00:00:00').getDate() : '?'"></strong>.
                     </p>
                 </div>
 
@@ -276,6 +280,8 @@ function lancamentos() {
         valorBaixa: '',
         filtros: { tipo: '', status: '', mes: '' },
         form: {},
+        categoriaCustom: '',
+        mostrarCampoCustom: false,
 
         get lancamentosFiltrados() {
             return this.lista.filter(l => {
@@ -318,12 +324,18 @@ function lancamentos() {
         },
 
         abrirModal(lancamento = null) {
+            const categoriasPadrao = ['servicos','produtos','aluguel','impostos','folha','marketing','outros'];
+            const cat = lancamento?.categoria || 'servicos';
+            const ehPadrao = categoriasPadrao.includes(cat);
             this.form = lancamento ? { ...lancamento } : {
                 tipo: 'receber', modalidade: 'avista', descricao: '', valor: '',
                 vencimento: '', categoria: 'servicos', cliente_fornecedor: '',
                 forma_pagamento: '', total_parcelas: '', frequencia: 'mensal',
                 data_termino: '', observacao: '', e_custo_fixo: false
             };
+            this.categoriaCustom = ehPadrao ? '' : cat;
+            this.mostrarCampoCustom = !ehPadrao;
+            if (!ehPadrao) this.form.categoria = '__custom__';
             this.modalAberto = true;
             this.$nextTick(() => lucide.createIcons());
         },
@@ -331,11 +343,20 @@ function lancamentos() {
         async salvar() {
             this.salvando = true;
             try {
+                const payload = { ...this.form };
+                if (this.mostrarCampoCustom) {
+                    if (!this.categoriaCustom.trim()) {
+                        toast('Digite a nova categoria', 'aviso');
+                        this.salvando = false;
+                        return;
+                    }
+                    payload.categoria = this.categoriaCustom.trim().toLowerCase();
+                }
                 const metodo = this.form.id ? 'PUT' : 'POST';
                 const r = await fetch('<?= raizUrl('/api/financeiro/lancamentos.php') ?>', {
                     method: metodo,
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(this.form)
+                    body: JSON.stringify(payload)
                 });
                 const res = await r.json();
                 if (r.ok) {
