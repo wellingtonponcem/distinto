@@ -434,11 +434,20 @@ $tituloPagina = $tituloPagina ?? APP_NAME;
         .dark .modal-overlay { background: rgba(0,0,0,0.85); }
         .dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
 
-        /* Ajustes específicos para cores forçadas inline */
+        /* Ajustes específicos para cores forçadas inline e classes Tailwind */
         .dark [style*="#f1f5f9"], .dark [style*="#e2e8f0"], .dark [style*="#cbd5e1"], .dark [style*="#ffffff"] { color: #f1f1f1 !important; }
         .dark [style*="#94a3b8"], .dark [style*="#6b7280"], .dark [style*="#4b5563"], .dark [style*="#8a8a8a"] { color: #999999 !important; }
         .dark [style*="background:#ffffff"], .dark [style*="background:#fbfbfb"], .dark [style*="background: #ffffff"], .dark [style*="background: #fbfbfb"] { background: #111111 !important; }
         .dark [style*="border-color:#eeeeee"], .dark [style*="border-color:#ececec"], .dark [style*="border: 1px solid #ececec"] { border-color: #222222 !important; }
+        
+        .dark .text-zinc-950 { color: #ffffff !important; }
+        .dark .text-zinc-900 { color: #f1f1f1 !important; }
+        .dark .text-zinc-800 { color: #e4e4e7 !important; }
+        .dark .text-zinc-700 { color: #d4d4d8 !important; }
+        .dark .text-zinc-500 { color: #a1a1aa !important; }
+        .dark .text-zinc-400 { color: #71717a !important; }
+        .dark .bg-zinc-50 { background-color: #18181b !important; }
+        .dark .border-zinc-100 { border-color: #27272a !important; }
     </style>
 </head>
 <body>
