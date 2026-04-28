@@ -363,7 +363,11 @@ include __DIR__ . '/../includes/layout/head.php';
                                         <template x-for="cat in categoriasDisponiveis" :key="cat">
                                             <option :value="cat" x-text="cat.charAt(0).toUpperCase() + cat.slice(1)"></option>
                                         </template>
+                                        <option value="__custom__" style="font-weight:bold; color:#6366f1;">+ Nova categoria...</option>
                                     </select>
+                                    <div x-show="txn.acao_id === 'novo' && txn.categoria === '__custom__'" style="margin-top:6px;">
+                                        <input class="input" type="text" x-model="txn.categoriaCustom" placeholder="Digite o nome..." style="width:100%; padding:4px 8px; font-size:12px;">
+                                    </div>
                                     <span x-show="txn.acao_id !== 'novo' && txn.acao_id !== 'ignorar'" style="font-size:11px; color:#6b7280;">Automático</span>
                                     <span x-show="txn.acao_id === 'ignorar'" style="font-size:11px; color:#6b7280;">-</span>
                                 </td>
@@ -704,7 +708,7 @@ function lancamentos() {
                     }
                     this.ofxTransacoes = res.transacoes.map(t => {
                         const match = this.buscarPendentesParaOfx(t)[0];
-                        return { ...t, acao_id: match ? match.id : 'novo', categoria: 'outros' };
+                        return { ...t, acao_id: match ? match.id : 'novo', categoria: 'outros', categoriaCustom: '' };
                     });
                     this.modalOfxAberto = true;
                     this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
@@ -739,6 +743,13 @@ function lancamentos() {
                 if (txn.acao_id === 'ignorar') continue;
                 
                 if (txn.acao_id === 'novo') {
+                    let catFinal = txn.categoria || 'outros';
+                    if (catFinal === '__custom__' && txn.categoriaCustom) {
+                        catFinal = txn.categoriaCustom.trim().toLowerCase();
+                    } else if (catFinal === '__custom__') {
+                        catFinal = 'outros';
+                    }
+
                     // Criar novo pagamento já baixado
                     await fetch('<?= raizUrl('/api/financeiro/lancamentos.php') ?>', {
                         method: 'POST',
@@ -748,7 +759,7 @@ function lancamentos() {
                             descricao: txn.descricao + ' (OFX)',
                             valor: txn.valor,
                             vencimento: txn.data,
-                            categoria: txn.categoria || 'outros',
+                            categoria: catFinal,
                             observacao: 'Importado via OFX'
                         })
                     });
