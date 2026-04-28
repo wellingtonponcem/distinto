@@ -78,6 +78,10 @@ require_once __DIR__ . '/../includes/layout/head.php';
                 <p class="page-subtitle">Converse com a IA para definir o preço ideal de serviços complexos.</p>
             </div>
             <div style="display:flex; gap:10px;">
+                <button @click="criarServico" class="btn-primary" style="background: #10b981;" :disabled="mensagens.length < 3 || criandoServico">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span x-text="criandoServico ? 'Criando...' : 'Criar Serviço'"></span>
+                </button>
                 <button @click="reiniciar" class="btn-secondary">
                     <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                     Nova Consulta
@@ -103,15 +107,15 @@ require_once __DIR__ . '/../includes/layout/head.php';
             </div>
 
             <form @submit.prevent="enviar" class="chat-input-area">
-                <input 
-                    type="text" 
+                <textarea 
                     x-model="input" 
-                    placeholder="Responda ou pergunte algo..." 
+                    @keydown.enter.prevent="if($event.shiftKey) { input += '\n' } else { enviar() }"
+                    placeholder="Responda ou pergunte algo... (Shift+Enter para pular linha)" 
                     class="input flex-1"
+                    style="height: 44px; min-height: 44px; max-height: 150px; resize: none; padding-top: 12px;"
                     :disabled="carregando"
-                    autocomplete="off"
-                >
-                <button type="submit" class="btn-primary" :disabled="carregando || !input.trim()">
+                ></textarea>
+                <button type="submit" class="btn-primary" :disabled="carregando || !input.trim()" style="height: 44px;">
                     <i data-lucide="send" class="w-4 h-4"></i>
                 </button>
             </form>
@@ -141,6 +145,7 @@ document.addEventListener('alpine:init', () => {
         input: '',
         carregando: false,
         memorizando: false,
+        criandoServico: false,
         memoria: '',
 
         async init() {
@@ -173,6 +178,28 @@ document.addEventListener('alpine:init', () => {
                 toast('Erro ao memorizar', 'erro');
             }
             this.memorizando = false;
+        },
+
+        async criarServico() {
+            if (!confirm('Deseja converter esta conversa em um serviço na sua Tabela de Preços?')) return;
+            
+            this.criandoServico = true;
+            try {
+                const r = await fetch('<?= raizUrl('/api/precificacao/converter_servico.php') ?>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mensagens: this.mensagens })
+                });
+                const res = await r.json();
+                if (res.ok) {
+                    toast('Serviço criado com sucesso na Tabela de Preços!', 'sucesso');
+                } else {
+                    toast(res.erro || 'Erro ao criar serviço', 'erro');
+                }
+            } catch(e) {
+                toast('Erro de conexão', 'erro');
+            }
+            this.criandoServico = false;
         },
 
         renderMarkdown(content) {

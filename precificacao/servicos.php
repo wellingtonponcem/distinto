@@ -44,7 +44,7 @@ include __DIR__ . '/../includes/layout/head.php';
         <!-- Tabela de Serviços -->
         <div class="card" style="overflow:hidden;">
             <div class="table-header" style="display:grid; grid-template-columns:2fr 80px 1fr 1fr 80px 100px;">
-                <span>Serviço</span><span>Horas</span><span>Custo Total</span><span>Preço Mínimo</span><span>Markup</span><span style="text-align:right;">Ações</span>
+                <span>Serviço</span><span>Horas</span><span>Preço Mínimo</span><span>Preço Venda</span><span>Markup</span><span style="text-align:right;">Ações</span>
             </div>
 
             <template x-if="carregando">
@@ -65,10 +65,10 @@ include __DIR__ . '/../includes/layout/head.php';
                         <div style="color:#6b7280; font-size:12px; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" x-text="s.descricao || '—'"></div>
                     </div>
                     <div class="table-cell" style="color:#94a3b8;" x-text="s.horas_estimadas + 'h'"></div>
-                    <div class="table-cell" style="color:#94a3b8;" x-text="formatarMoeda(parseFloat(s.custo_producao) + parseFloat(s.custos_variaveis))"></div>
-                    <div class="table-cell" style="font-weight:700; color:#a78bfa;" x-text="formatarMoeda(calcularPrecoMinimo(s))"></div>
+                    <div class="table-cell" style="color:#94a3b8;" x-text="formatarMoeda(calcularPrecoMinimo(s))"></div>
+                    <div class="table-cell" style="font-weight:700; color:#10b981;" x-text="s.preco_venda > 0 ? formatarMoeda(s.preco_venda) : '—'"></div>
                     <div class="table-cell">
-                        <span style="color:#10b981; font-weight:600;" x-text="s.markup + '%'"></span>
+                        <span style="color:#94a3b8; font-weight:600;" x-text="s.markup + '%'"></span>
                     </div>
                     <div class="table-cell" style="display:flex; gap:6px; justify-content:flex-end;">
                         <button @click="abrirModal(s)" style="color:#6b7280; background:none; border:none; cursor:pointer; padding:4px;">
@@ -155,13 +155,13 @@ include __DIR__ . '/../includes/layout/head.php';
                 </div>
                 <div style="margin-bottom:16px; background:rgba(167,139,250,0.05); padding:16px; border-radius:8px; border:1px solid rgba(167,139,250,0.2);">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-                        <label class="label" style="margin-bottom:0;">Preço de Venda Sugerido</label>
+                        <label class="label" style="margin-bottom:0;">Preço de Venda Final (R$)</label>
                         <button type="button" class="btn-secondary" @click="sugerirPrecoIA()" :disabled="sugerindoPreco" style="padding:4px 8px; font-size:11px; border-color:#a78bfa; color:#a78bfa;">
                             <i data-lucide="sparkles" style="width:12px;height:12px;"></i> 
                             <span x-text="sugerindoPreco ? 'Analisando...' : 'Sugerir com IA'"></span>
                         </button>
                     </div>
-                    <div style="font-size:20px; font-weight:800; color:#a78bfa;" x-text="form.preco_venda ? formatarMoeda(form.preco_venda) : 'R$ 0,00'"></div>
+                    <input class="input" type="number" step="0.01" x-model="form.preco_venda" style="font-size:18px; font-weight:800; color:#10b981; background:transparent; border:none; padding:0;" placeholder="0,00">
                     <p style="font-size:11px; color:#6b7280; margin-top:6px;">
                         Piso mínimo (custo + rateio): <span x-text="formatarMoeda(calcularPrecoMinimo(form))"></span>
                     </p>
