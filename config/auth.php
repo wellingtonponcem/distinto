@@ -36,6 +36,7 @@ function usuarioAtual(): array {
         'id'   => $_SESSION['user_id'] ?? '',
         'nome' => $_SESSION['user_nome'] ?? '',
         'email'=> $_SESSION['user_email'] ?? '',
+        'nivel'=> $_SESSION['user_nivel'] ?? 0,
     ];
 }
 
@@ -45,6 +46,7 @@ function logarUsuario(array $user): void {
     $_SESSION['user_id']    = $user['id'];
     $_SESSION['user_nome']  = $user['nome'];
     $_SESSION['user_email'] = $user['email'];
+    $_SESSION['user_nivel'] = $user['nivel'] ?? 0;
 }
 
 function deslogarUsuario(): void {

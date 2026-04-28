@@ -56,6 +56,12 @@ function menuAtivo(string $path): string {
             <i data-lucide="settings" style="width:17px;height:17px;"></i>
             <span class="nav-label">Ajustes</span>
         </a>
+        <?php if ($usuario['nivel'] == 1): ?>
+        <a href="<?= raizUrl('/sistema/usuarios.php') ?>" class="nav-link <?= menuAtivo('/sistema/usuarios') ?>">
+            <i data-lucide="users" style="width:17px;height:17px;"></i>
+            <span class="nav-label">Usuarios</span>
+        </a>
+        <?php endif; ?>
     </nav>
 
     <div style="padding:16px 16px 20px; border-top:1px solid rgba(255,255,255,0.06);">
