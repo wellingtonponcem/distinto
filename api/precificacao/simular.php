@@ -37,7 +37,7 @@ $totalCustosFixos = array_reduce($custos, function($carry, $c) {
 }, 0);
 
 // Serviços e preços mínimos (com rateio de 160h mensais)
-$servicos = $db->query("SELECT nome, descricao, entregaveis, ferramentas, terceirizacao, horas_estimadas, custo_producao, custos_variaveis, markup FROM servicos WHERE ativo=1")->fetchAll();
+$servicos = $db->query("SELECT nome, descricao, entregaveis, ferramentas, terceirizacao, periodicidade, prazo_minimo, horas_estimadas, custo_producao, custos_variaveis, markup FROM servicos WHERE ativo=1")->fetchAll();
 $horasMensais = 160;
 $linhasServicos = [];
 foreach ($servicos as $s) {
@@ -50,6 +50,11 @@ foreach ($servicos as $s) {
     if (!empty($s['entregaveis'])) $detalhes[] = "Entregáveis: {$s['entregaveis']}";
     if (!empty($s['ferramentas'])) $detalhes[] = "Ferramentas: {$s['ferramentas']}";
     if (!empty($s['terceirizacao'])) $detalhes[] = "Terceirização: {$s['terceirizacao']}";
+    
+    $tipoServ = ($s['periodicidade'] ?? 'mensal') === 'mensal' ? 'Mensal' : 'Pontual';
+    $minimo = ($s['prazo_minimo'] ?? 0) > 0 ? " | Contrato mín: {$s['prazo_minimo']} meses" : "";
+    $detalhes[] = "Tipo: {$tipoServ}{$minimo}";
+
     $detalhesStr = !empty($detalhes) ? " (" . implode(' | ', $detalhes) . ")" : "";
 
     $linhasServicos[] = "- {$s['nome']}: {$s['horas_estimadas']}h/mês, preço mínimo R$ " . number_format($precoMin, 2, ',', '.') . $detalhesStr;
@@ -98,10 +103,12 @@ Prazo: {$prazo}
 Complexidade: {$complexidade}{$contexto}{$extras}
 
 REGRAS OBRIGATÓRIAS:
-1. NUNCA sugira valores abaixo do preço mínimo de cada serviço listado
-2. Apresente EXATAMENTE 2 opções: "## Opção Básica" e "## Opção Completa"
-3. Use tom consultivo e profissional, não de vendedor
-4. Para cada opção inclua: escopo detalhado, justificativa e investimento total
+1. NUNCA sugira valores abaixo do preço mínimo de cada serviço listado.
+2. Respeite a periodicidade (se for Mensal, o preço é mensal; se for Pontual, o preço é pelo projeto todo).
+3. Se o serviço tiver Prazo Mínimo de contrato, inclua isso claramente na proposta.
+4. Apresente EXATAMENTE 2 opções: "## Opção Básica" e "## Opção Completa".
+5. Use tom consultivo e profissional, não de vendedor.
+6. Para cada opção inclua: escopo detalhado, justificativa, investimento e termo de compromisso (tempo de contrato).
 5. Os preços devem ser realistas para o mercado brasileiro
 
 FORMATO ESPERADO:

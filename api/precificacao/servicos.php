@@ -21,6 +21,8 @@ try {
     garantirColunaServicos($db, 'entregaveis', "TEXT NULL");
     garantirColunaServicos($db, 'ferramentas', "TEXT NULL");
     garantirColunaServicos($db, 'terceirizacao', "TEXT NULL");
+    garantirColunaServicos($db, 'periodicidade', "VARCHAR(20) NOT NULL DEFAULT 'mensal'");
+    garantirColunaServicos($db, 'prazo_minimo', "INT NOT NULL DEFAULT 0");
 } catch (Exception $e) {}
 
 switch ($metodo) {
@@ -32,7 +34,7 @@ switch ($metodo) {
         $d = lerCorpo();
         if (empty($d['nome'])) responderJson(['erro' => 'Nome obrigatório'], 422);
         $id = gerarId();
-        $stmt = $db->prepare('INSERT INTO servicos (id, nome, descricao, entregaveis, ferramentas, terceirizacao, horas_estimadas, custo_producao, custos_variaveis, markup) VALUES (?,?,?,?,?,?,?,?,?,?)');
+        $stmt = $db->prepare('INSERT INTO servicos (id, nome, descricao, entregaveis, ferramentas, terceirizacao, periodicidade, prazo_minimo, horas_estimadas, custo_producao, custos_variaveis, markup) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
         $stmt->execute([
             $id, 
             $d['nome'], 
@@ -40,6 +42,8 @@ switch ($metodo) {
             $d['entregaveis'] ?? null,
             $d['ferramentas'] ?? null,
             $d['terceirizacao'] ?? null,
+            $d['periodicidade'] ?? 'mensal',
+            $d['prazo_minimo'] ?? 0,
             $d['horas_estimadas'] ?? 0, 
             $d['custo_producao'] ?? 0, 
             $d['custos_variaveis'] ?? 0, 
@@ -50,13 +54,15 @@ switch ($metodo) {
     case 'PUT':
         $d = lerCorpo();
         if (empty($d['id'])) responderJson(['erro' => 'ID obrigatório'], 422);
-        $stmt = $db->prepare('UPDATE servicos SET nome=?, descricao=?, entregaveis=?, ferramentas=?, terceirizacao=?, horas_estimadas=?, custo_producao=?, custos_variaveis=?, markup=? WHERE id=?');
+        $stmt = $db->prepare('UPDATE servicos SET nome=?, descricao=?, entregaveis=?, ferramentas=?, terceirizacao=?, periodicidade=?, prazo_minimo=?, horas_estimadas=?, custo_producao=?, custos_variaveis=?, markup=? WHERE id=?');
         $stmt->execute([
             $d['nome'], 
             $d['descricao'] ?? null, 
             $d['entregaveis'] ?? null,
             $d['ferramentas'] ?? null,
             $d['terceirizacao'] ?? null,
+            $d['periodicidade'] ?? 'mensal',
+            $d['prazo_minimo'] ?? 0,
             $d['horas_estimadas'] ?? 0, 
             $d['custo_producao'] ?? 0, 
             $d['custos_variaveis'] ?? 0, 

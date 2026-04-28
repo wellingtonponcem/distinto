@@ -102,6 +102,19 @@ include __DIR__ . '/../includes/layout/head.php';
                     <label class="label">Nome do Serviço *</label>
                     <input class="input" x-model="form.nome" required placeholder="Ex: Gestão de Tráfego Pago">
                 </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">
+                    <div>
+                        <label class="label">Periodicidade</label>
+                        <select class="select" x-model="form.periodicidade">
+                            <option value="mensal">Mensal (Recorrente)</option>
+                            <option value="pontual">Pontual (Projeto Único)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Prazo Mínimo (Meses)</label>
+                        <input class="input" type="number" min="0" x-model="form.prazo_minimo" placeholder="Ex: 6 (0 para s/ mínimo)">
+                    </div>
+                </div>
                 <div style="margin-bottom:16px;">
                     <label class="label">Descrição Básica</label>
                     <textarea class="input" x-model="form.descricao" rows="2" placeholder="O que é o serviço de forma resumida..." style="resize:vertical;"></textarea>
@@ -253,6 +266,8 @@ function servicos() {
                 entregaveis: '',
                 ferramentas: '',
                 terceirizacao: '',
+                periodicidade: 'mensal',
+                prazo_minimo: 0,
                 horas_dia: '',
                 horas_estimadas:'', 
                 custo_producao:'', 
