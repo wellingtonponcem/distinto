@@ -34,26 +34,33 @@ function menuAtivo(string $path): string {
     
     <?php
     $dbSummary = Database::get();
-    $summary = $dbSummary->query("
+    $mesIni = date('Y-m-01');
+    $mesFim = date('Y-m-t');
+
+    $summary = $dbSummary->prepare("
         SELECT 
-            SUM(CASE WHEN tipo='receber' AND status='pago' THEN valor_pago ELSE 0 END) as total_recebido,
-            SUM(CASE WHEN tipo='pagar' AND status='pago' THEN valor_pago ELSE 0 END) as total_gasto,
+            SUM(CASE WHEN tipo='receber' AND status IN ('pago','efetivado') THEN valor_pago ELSE 0 END) as total_recebido,
+            SUM(CASE WHEN tipo='pagar' AND status IN ('pago','efetivado') THEN valor_pago ELSE 0 END) as total_gasto,
             SUM(CASE WHEN tipo='receber' AND status NOT IN ('pago','cancelado') THEN (valor - valor_pago) ELSE 0 END) as total_a_receber,
             SUM(CASE WHEN tipo='pagar' AND status NOT IN ('pago','cancelado') THEN (valor - valor_pago) ELSE 0 END) as total_a_pagar
         FROM lancamentos
-    ")->fetch();
+        WHERE vencimento BETWEEN ? AND ?
+    ");
+    $summary->execute([$mesIni, $mesFim]);
+    $res = $summary->fetch();
 
-    $totalRec = (float)($summary['total_recebido'] ?? 0);
-    $totalGas = (float)($summary['total_gasto'] ?? 0);
-    $aReceber = (float)($summary['total_a_receber'] ?? 0);
-    $aPagar   = (float)($summary['total_a_pagar'] ?? 0);
+    $totalRec = (float)($res['total_recebido'] ?? 0);
+    $totalGas = (float)($res['total_gasto'] ?? 0);
+    $aReceber = (float)($res['total_a_receber'] ?? 0);
+    $aPagar   = (float)($res['total_a_pagar'] ?? 0);
     $balanco  = $totalRec - $totalGas;
     ?>
 
     <div style="padding:0 14px 16px; display:flex; flex-direction:column; gap:8px;">
         <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:12px;">
-            <div style="font-size:9px; font-weight:800; color:#686868; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px; display:flex; align-items:center; gap:5px;">
-                <i data-lucide="activity" style="width:10px;height:10px;"></i> Resumo Geral
+            <div style="font-size:9px; font-weight:800; color:#686868; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:5px;">
+                <span><i data-lucide="activity" style="width:10px;height:10px;display:inline;"></i> RESUMO DO MÊS</span>
+                <span style="opacity:0.5; font-size:8px;"><?= date('m/Y') ?></span>
             </div>
             
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
