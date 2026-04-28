@@ -250,6 +250,7 @@ function servicos() {
                 this.lista = await r.json();
             } catch(e) { toast('Erro ao carregar serviços', 'erro'); }
             this.carregando = false;
+            this.$nextTick(() => lucide.createIcons());
         },
 
         async carregarCustosFixos() {
