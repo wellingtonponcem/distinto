@@ -448,6 +448,11 @@ $tituloPagina = $tituloPagina ?? APP_NAME;
         .dark .text-zinc-400 { color: #71717a !important; }
         .dark .bg-zinc-50 { background-color: #18181b !important; }
         .dark .border-zinc-100 { border-color: #27272a !important; }
+        
+        /* Garantir que ícones Lucide sigam a cor do texto no modo dark */
+        .dark svg { stroke: currentColor !important; }
+        .dark .btn-secondary svg { color: #ffffff !important; }
+        .dark .text-zinc-500 svg { color: #a1a1aa !important; }
     </style>
 </head>
 <body>
