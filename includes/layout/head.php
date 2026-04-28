@@ -14,6 +14,13 @@ $tituloPagina = $tituloPagina ?? APP_NAME;
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // Inicializar modo escuro antes de renderizar para evitar flash
+        if (localStorage.getItem('dark-mode') === 'true' || (!localStorage.getItem('dark-mode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -401,6 +408,37 @@ $tituloPagina = $tituloPagina ?? APP_NAME;
                 flex-direction: column;
             }
         }
+
+        /* Estilos Modo Escuro */
+        .dark body { background: #000000; color: #f1f1f1; }
+        .dark #main-content, 
+        .dark .content-sheet { background: #0a0a0a; border-color: #1a1a1a; }
+        .dark .card { background: #111111; border-color: #222222; box-shadow: none; }
+        .dark .card:hover { border-color: #333333; }
+        .dark .page-title { color: #ffffff; }
+        .dark .page-subtitle { color: #777777; }
+        .dark .app-topbar { border-color: #222222; }
+        .dark .top-nav a { color: #aaaaaa; }
+        .dark .top-nav a:hover { background: #1a1a1a; color: #ffffff; }
+        .dark .label { color: #aaaaaa; }
+        .dark .input, .dark .select { background: #1a1a1a; border-color: #333333; color: #ffffff; }
+        .dark .input:focus, .dark .select:focus { border-color: #444444; box-shadow: 0 0 0 3px rgba(255,255,255,0.05); }
+        .dark .table-header { background: #1a1a1a; color: #888888; border-color: #222222; }
+        .dark .table-row { border-color: #1a1a1a; }
+        .dark .table-cell { color: #dddddd; }
+        .dark .btn-secondary { background: #111111; color: #ffffff; border-color: #333333; }
+        .dark .btn-secondary:hover { background: #1a1a1a; border-color: #444444; }
+        .dark .trend-up { background: rgba(0,135,88,0.1); color: #00c882; }
+        .dark .trend-down { background: rgba(196,59,59,0.1); color: #ff6b6b; }
+        .dark .modal { background: #111111; border-color: #222222; color: #ffffff; }
+        .dark .modal-overlay { background: rgba(0,0,0,0.85); }
+        .dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+        /* Ajustes específicos para cores forçadas inline */
+        .dark [style*="#f1f5f9"], .dark [style*="#e2e8f0"], .dark [style*="#cbd5e1"], .dark [style*="#ffffff"] { color: #f1f1f1 !important; }
+        .dark [style*="#94a3b8"], .dark [style*="#6b7280"], .dark [style*="#4b5563"], .dark [style*="#8a8a8a"] { color: #999999 !important; }
+        .dark [style*="background:#ffffff"], .dark [style*="background:#fbfbfb"], .dark [style*="background: #ffffff"], .dark [style*="background: #fbfbfb"] { background: #111111 !important; }
+        .dark [style*="border-color:#eeeeee"], .dark [style*="border-color:#ececec"], .dark [style*="border: 1px solid #ececec"] { border-color: #222222 !important; }
     </style>
 </head>
 <body>

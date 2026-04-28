@@ -63,9 +63,33 @@ function menuAtivo(string $path): string {
                 <div style="color:#ffffff; font-size:12px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2;"><?= sanitizar($usuario['nome']) ?></div>
                 <div style="color:#777777; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= sanitizar($usuario['email']) ?></div>
             </div>
-            <a href="<?= raizUrl('/api/auth/logout.php') ?>" title="Sair" style="display:grid; place-items:center; width:28px; height:28px; flex-shrink:0; color:#868686; border-radius:8px; text-decoration:none;">
-                <i data-lucide="log-out" style="width:15px;height:15px;"></i>
-            </a>
+            
+            <div x-data="{ 
+                isDark: document.documentElement.classList.contains('dark'),
+                toggle() {
+                    this.isDark = !this.isDark;
+                    if (this.isDark) {
+                        document.documentElement.classList.add('dark');
+                        localStorage.setItem('dark-mode', 'true');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                        localStorage.setItem('dark-mode', 'false');
+                    }
+                }
+            }" style="display:flex; align-items:center; gap:4px;">
+                <button @click="toggle()" :title="isDark ? 'Ativar Modo Claro' : 'Ativar Modo Escuro'" style="display:grid; place-items:center; width:28px; height:28px; flex-shrink:0; color:#868686; border-radius:8px; background:none; border:none; cursor:pointer;">
+                    <template x-if="isDark">
+                        <i data-lucide="sun" style="width:15px;height:15px;"></i>
+                    </template>
+                    <template x-if="!isDark">
+                        <i data-lucide="moon" style="width:15px;height:15px;"></i>
+                    </template>
+                </button>
+
+                <a href="<?= raizUrl('/api/auth/logout.php') ?>" title="Sair" style="display:grid; place-items:center; width:28px; height:28px; flex-shrink:0; color:#868686; border-radius:8px; text-decoration:none;">
+                    <i data-lucide="log-out" style="width:15px;height:15px;"></i>
+                </a>
+            </div>
         </div>
     </div>
 </aside>
