@@ -78,10 +78,6 @@ require_once __DIR__ . '/../includes/layout/head.php';
                 <p class="page-subtitle">Converse com a IA para definir o preço ideal de serviços complexos.</p>
             </div>
             <div style="display:flex; gap:10px;">
-                <button @click="memorizar" class="btn-secondary" :disabled="memorizando || mensagens.length < 3">
-                    <i data-lucide="brain" class="w-4 h-4"></i>
-                    <span x-text="memorizando ? 'Memorizando...' : 'Memorizar Fatos'"></span>
-                </button>
                 <button @click="reiniciar" class="btn-secondary">
                     <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                     Nova Consulta
@@ -202,6 +198,7 @@ document.addEventListener('alpine:init', () => {
                 const res = await r.json();
                 if (res.resposta) {
                     this.mensagens.push({ role: 'assistant', content: res.resposta });
+                    if (res.memoria) this.memoria = res.memoria;
                 } else {
                     toast(res.erro || 'Erro na IA', 'erro');
                 }

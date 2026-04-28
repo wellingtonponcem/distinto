@@ -63,7 +63,9 @@ REGRAS DA CONVERSA:
    - Sugira um valor final estratégico (valor cheio/arredondado).
 5. Use tom profissional, consultivo e focado em lucratividade. Responda em Português do Brasil e use Markdown.
 
-IMPORTANTE: Se o usuário pedir o preço cedo demais, explique que você precisa de mais detalhes sobre o escopo para não gerar prejuízo.
+MEMORIZAÇÃO AUTOMÁTICA:
+Se você identificar um fato NOVO e PERMANENTE sobre a agência (equipamentos, diárias, processos, ferramentas), você deve incluí-lo ao final da sua resposta dentro de uma tag <memory>fatos aqui...</memory>. 
+Não repita fatos que já estão no contexto de MEMÓRIA ATUAL acima. Se não houver nada novo, não use a tag.
 PROMPT;
 
 $payload = json_encode([
@@ -98,7 +100,20 @@ if ($httpCode !== 200) {
 $dadosIa = json_decode($resposta, true);
 $textoIa = $dadosIa['choices'][0]['message']['content'] ?? 'Desculpe, tive um problema ao processar sua resposta.';
 
+// Processar Memória Automática
+if (preg_match('/<memory>(.*?)<\/memory>/s', $textoIa, $matches)) {
+    $novosFatos = trim($matches[1]);
+    $textoIa = str_replace($matches[0], '', $textoIa); // Limpar da resposta do usuário
+    
+    // Concatenar com a memória existente de forma inteligente
+    $memoriaCombinada = $memoriaAgencia . "\n" . $novosFatos;
+    
+    $stmt = $db->prepare("UPDATE configuracao_empresa SET memoria_ia = ? WHERE id = 'principal'");
+    $stmt->execute([$memoriaCombinada]);
+    $memoriaAgencia = $memoriaCombinada;
+}
+
 responderJson([
-    'resposta' => $textoIa,
+    'resposta' => trim($textoIa),
     'memoria' => $memoriaAgencia
 ]);
