@@ -1,5 +1,8 @@
-<script>
-    lucide.createIcons();
+    function initIcons() {
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    }
 
     window.toast = function(msg, tipo = 'sucesso') {
         const cores = {
@@ -9,7 +12,7 @@
             info:    'border-blue-500/20 bg-white text-blue-700',
         };
         const t = document.createElement('div');
-        t.className = `fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl border text-sm font-bold shadow-lg ${cores[tipo] || cores.info}`;
+        t.className = `fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl border text-sm font-bold shadow-lg \${cores[tipo] || cores.info}`;
         t.style.animation = 'slideIn 0.2s ease';
         t.textContent = msg;
         document.body.appendChild(t);
@@ -30,7 +33,13 @@
         return `${d}/${m}/${y}`;
     };
 
-    document.addEventListener('alpine:initialized', () => lucide.createIcons());
+    document.addEventListener('DOMContentLoaded', initIcons);
+    document.addEventListener('alpine:initialized', initIcons);
+    
+    // Fallback para garantir que ícones carreguem mesmo com atraso de rede
+    window.addEventListener('load', initIcons);
+    setTimeout(initIcons, 500);
+    setTimeout(initIcons, 2000);
 </script>
 
 <style>
