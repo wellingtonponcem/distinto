@@ -14,7 +14,6 @@ class Database {
                     PDO::ATTR_EMULATE_PREPARES => false,
                     PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
                 ]);
-                ]);
             } catch (PDOException $e) {
                 http_response_code(500);
                 die(json_encode(['erro' => 'Falha na conexão com o banco de dados.']));
