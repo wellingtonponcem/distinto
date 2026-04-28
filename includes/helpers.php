@@ -62,15 +62,8 @@ function calcularStatusAtualizado(float $valor, float $valorPago, string $vencim
 function raizUrl(string $caminho = ''): string {
     static $base = null;
     if ($base === null) {
-        $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
-        $dir    = dirname($script);
-        // Remover pastas de módulo para chegar à raiz do projeto
-        $partes  = array_values(array_filter(explode('/', $dir)));
-        $modulos = ['financeiro', 'precificacao', 'api', 'auth', 'setup', 'assets', 'includes', 'pdf', 'relatorios'];
-        while (!empty($partes) && in_array(end($partes), $modulos, true)) {
-            array_pop($partes);
-        }
-        $base = empty($partes) ? '' : '/' . implode('/', $partes);
+        $path = parse_url(APP_URL, PHP_URL_PATH) ?: '';
+        $base = rtrim($path, '/');
     }
     return $base . $caminho;
 }
