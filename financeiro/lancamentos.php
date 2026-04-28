@@ -310,10 +310,10 @@ include __DIR__ . '/../includes/layout/head.php';
                         <button class="btn-secondary" @click="modalBaixaAberto=false">Cancelar</button>
                         <button class="btn-primary" @click="confirmarBaixa()" :disabled="salvando" x-text="salvando ? 'Salvando...' : 'Confirmar'"></button>
                     </div>
+                    </div>
                 </div>
             </template>
         </div>
-    </div>
     </div>
 
     <!-- Modal Conciliação OFX -->
