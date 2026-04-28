@@ -143,6 +143,7 @@ include __DIR__ . '/../includes/layout/head.php';
                         <input class="input" type="number" step="0.5" min="0.5" x-model="form.horas_estimadas" required placeholder="Ex: 20">
                     </div>
                 </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">
                     <div>
                         <label class="label">Custo de Produção (R$) *</label>
                         <input class="input" type="number" step="0.01" min="0" x-model="form.custo_producao" required placeholder="0,00">
@@ -152,6 +153,20 @@ include __DIR__ . '/../includes/layout/head.php';
                         <input class="input" type="number" step="0.01" min="0" x-model="form.custos_variaveis" placeholder="Ferramentas, etc.">
                     </div>
                 </div>
+                <div style="margin-bottom:16px;">
+                    <label class="label">Markup Desejado (%) *</label>
+                    <input class="input" type="number" step="0.5" min="0" x-model="form.markup" required placeholder="Ex: 30">
+                    <p style="font-size:12px; color:#6b7280; margin-top:6px;">
+                        Preço mínimo calculado: <strong style="color:#a78bfa;" x-text="formatarMoeda(calcularPrecoMinimo(form))"></strong>
+                    </p>
+                </div>
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" class="btn-secondary" @click="modalAberto=false">Cancelar</button>
+                    <button type="submit" class="btn-primary" :disabled="salvando" x-text="salvando ? 'Salvando...' : (form.id ? 'Atualizar' : 'Criar Serviço')"></button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Modal Planejador IA -->
     <div class="modal-overlay" x-show="modalPlanejadorAberto" x-cloak @click.self="modalPlanejadorAberto=false">
@@ -190,20 +205,6 @@ include __DIR__ . '/../includes/layout/head.php';
                     <span x-show="planejando">Analisando...</span>
                 </button>
             </div>
-        </div>
-    </div>
-                <div style="margin-bottom:16px;">
-                    <label class="label">Markup Desejado (%) *</label>
-                    <input class="input" type="number" step="0.5" min="0" x-model="form.markup" required placeholder="Ex: 30">
-                    <p style="font-size:12px; color:#6b7280; margin-top:6px;">
-                        Preço mínimo calculado: <strong style="color:#a78bfa;" x-text="formatarMoeda(calcularPrecoMinimo(form))"></strong>
-                    </p>
-                </div>
-                <div style="display:flex; gap:10px; justify-content:flex-end;">
-                    <button type="button" class="btn-secondary" @click="modalAberto=false">Cancelar</button>
-                    <button type="submit" class="btn-primary" :disabled="salvando" x-text="salvando ? 'Salvando...' : (form.id ? 'Atualizar' : 'Criar Serviço')"></button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
