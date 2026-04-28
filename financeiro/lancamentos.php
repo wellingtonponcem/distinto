@@ -39,10 +39,17 @@ include __DIR__ . '/../includes/layout/head.php';
                 <option value="atrasado">Atrasado</option>
                 <option value="cancelado">Cancelado</option>
             </select>
-            <input class="input" type="month" x-model="filtros.mes" style="width:auto; max-width:160px;">
-            <button class="btn-secondary" @click="carregarLancamentos()" style="padding:6px 14px; font-size:13px;">
-                <i data-lucide="search" style="width:13px;height:13px;"></i> Filtrar
-            </button>
+            <div style="display:flex; gap:6px; align-items:center;">
+                <input class="input" type="date" x-model="filtros.data_inicio" style="width:auto;">
+                <span style="color:#6b7280;">até</span>
+                <input class="input" type="date" x-model="filtros.data_fim" style="width:auto;">
+            </div>
+            <div style="display:flex; gap:6px;">
+                <button class="btn-secondary" @click="setPeriodo('hoje')" style="padding:6px 10px; font-size:12px;">Dia</button>
+                <button class="btn-secondary" @click="setPeriodo('semana')" style="padding:6px 10px; font-size:12px;">Sem</button>
+                <button class="btn-secondary" @click="setPeriodo('mes')" style="padding:6px 10px; font-size:12px;">Mês</button>
+                <button class="btn-secondary" @click="setPeriodo('ano')" style="padding:6px 10px; font-size:12px;">Ano</button>
+            </div>
         </div>
 
         <!-- Tabela -->
@@ -278,7 +285,7 @@ function lancamentos() {
         modalBaixaAberto: false,
         lancamentoBaixa: null,
         valorBaixa: '',
-        filtros: { tipo: '', status: '', mes: '' },
+        filtros: { tipo: '', status: '', data_inicio: '', data_fim: '' },
         form: {},
         categoriaCustom: '',
         mostrarCampoCustom: false,
@@ -287,10 +294,8 @@ function lancamentos() {
             return this.lista.filter(l => {
                 if (this.filtros.tipo   && l.tipo !== this.filtros.tipo) return false;
                 if (this.filtros.status && l.status !== this.filtros.status) return false;
-                if (this.filtros.mes) {
-                    const mes = l.vencimento ? l.vencimento.substring(0, 7) : '';
-                    if (mes !== this.filtros.mes) return false;
-                }
+                if (this.filtros.data_inicio && l.vencimento < this.filtros.data_inicio) return false;
+                if (this.filtros.data_fim && l.vencimento > this.filtros.data_fim) return false;
                 return true;
             });
         },
@@ -311,7 +316,33 @@ function lancamentos() {
             // Pré-filtrar se vier da query string
             const params = new URLSearchParams(window.location.search);
             if (params.get('filtro')) this.filtros.status = params.get('filtro');
+            this.setPeriodo('mes'); // Padrão
             await this.carregarLancamentos();
+        },
+
+        setPeriodo(tipo) {
+            const hoje = new Date();
+            const y = hoje.getFullYear();
+            const m = String(hoje.getMonth() + 1).padStart(2, '0');
+            const d = String(hoje.getDate()).padStart(2, '0');
+
+            if (tipo === 'hoje') {
+                const hojeStr = `${y}-${m}-${d}`;
+                this.filtros.data_inicio = hojeStr;
+                this.filtros.data_fim = hojeStr;
+            } else if (tipo === 'semana') {
+                const primeiroDia = new Date(hoje.setDate(hoje.getDate() - hoje.getDay()));
+                const ultimoDia = new Date(hoje.setDate(hoje.getDate() - hoje.getDay() + 6));
+                this.filtros.data_inicio = primeiroDia.toISOString().split('T')[0];
+                this.filtros.data_fim = ultimoDia.toISOString().split('T')[0];
+            } else if (tipo === 'mes') {
+                const ultimoDia = new Date(y, hoje.getMonth() + 1, 0).getDate();
+                this.filtros.data_inicio = `${y}-${m}-01`;
+                this.filtros.data_fim = `${y}-${m}-${String(ultimoDia).padStart(2, '0')}`;
+            } else if (tipo === 'ano') {
+                this.filtros.data_inicio = `${y}-01-01`;
+                this.filtros.data_fim = `${y}-12-31`;
+            }
         },
 
         async carregarLancamentos() {
@@ -327,6 +358,7 @@ function lancamentos() {
                 toast(e.message || 'Erro ao carregar lançamentos', 'erro'); 
             }
             this.carregando = false;
+            this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
         },
 
         abrirModal(lancamento = null) {
