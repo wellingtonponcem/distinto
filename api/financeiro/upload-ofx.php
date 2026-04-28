@@ -42,7 +42,7 @@ foreach ($parts as $txn) {
     // Some banks use ISO-8859-1 in OFX
     $memo = trim($memoMatch[1] ?? '');
     if (!mb_check_encoding($memo, 'UTF-8')) {
-        $memo = utf8_encode($memo);
+        $memo = mb_convert_encoding($memo, 'UTF-8', 'ISO-8859-1');
     }
 
     if ($date && $amount > 0) {
