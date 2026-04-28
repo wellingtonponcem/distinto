@@ -20,7 +20,7 @@ include __DIR__ . '/../includes/layout/head.php';
                 <p style="font-size:14px; color:#6b7280; margin-top:2px;">Contas a pagar e a receber</p>
             </div>
             <div style="display:flex; gap:10px;">
-                <input type="file" x-ref="ofxInput" @change="uploadOfx($event)" style="display:none" accept=".ofx,.OFX">
+                <input type="file" x-ref="ofxInput" @change="uploadOfx($event)" style="opacity:0; position:absolute; width:1px; height:1px; z-index:-1;" accept=".ofx,.OFX">
                 <button class="btn-secondary" @click="$refs.ofxInput.click()" style="color:#6366f1; border-color:rgba(99,102,241,0.3);" :disabled="uploadingOfx">
                     <span x-show="!uploadingOfx"><i data-lucide="file-up" style="width:15px;height:15px;"></i> Importar OFX</span>
                     <span x-show="uploadingOfx">⏳ Lendo arquivo...</span>
@@ -669,6 +669,7 @@ function lancamentos() {
         },
 
         async uploadOfx(e) {
+            alert("Evento change disparado! Arquivo: " + (e.target?.files?.[0]?.name || 'Nenhum'));
             const file = e.target?.files ? e.target.files[0] : null;
             if (!file) {
                 alert("Nenhum arquivo selecionado.");
