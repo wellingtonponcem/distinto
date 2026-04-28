@@ -29,7 +29,12 @@ include __DIR__ . '/../includes/layout/head.php';
                 <i data-lucide="info" style="width:14px;height:14px; vertical-align:middle; margin-right:4px;"></i>
                 Horas mensais de capacidade da agência (para rateio dos custos fixos):
             </div>
-            <input class="input" type="number" min="1" x-model="horasMensais" style="width:100px;" placeholder="160">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <input class="input" type="number" min="1" x-model="horasMensais" style="width:100px;" placeholder="160">
+                <button class="btn-secondary" @click="abrirPlanejadorIA()" style="padding:6px 10px; border-color:#a78bfa; color:#a78bfa;">
+                    <i data-lucide="sparkles" style="width:14px;height:14px;"></i> Planejar com IA
+                </button>
+            </div>
             <div style="font-size:13px; color:#6b7280;">
                 Custo fixo total mensal:
                 <strong style="color:#ef4444;" x-text="formatarMoeda(totalCustosFixos)"></strong>
@@ -115,11 +120,16 @@ include __DIR__ . '/../includes/layout/head.php';
                         <input class="input" x-model="form.terceirizacao" placeholder="Ex: R$ 200,00 - Designer Freelancer">
                     </div>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:16px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">
                     <div>
-                        <label class="label">Horas Estimadas *</label>
+                        <label class="label">Horas/Dia (Dedicadas) *</label>
+                        <input class="input" type="number" step="0.1" min="0" x-model="form.horas_dia" @input="calcularHorasMensaisServico()" required placeholder="Ex: 0.5">
+                    </div>
+                    <div>
+                        <label class="label">Horas Estimadas (Mês) *</label>
                         <input class="input" type="number" step="0.5" min="0.5" x-model="form.horas_estimadas" required placeholder="Ex: 20">
                     </div>
+                </div>
                     <div>
                         <label class="label">Custo de Produção (R$) *</label>
                         <input class="input" type="number" step="0.01" min="0" x-model="form.custo_producao" required placeholder="0,00">
@@ -129,6 +139,46 @@ include __DIR__ . '/../includes/layout/head.php';
                         <input class="input" type="number" step="0.01" min="0" x-model="form.custos_variaveis" placeholder="Ferramentas, etc.">
                     </div>
                 </div>
+
+    <!-- Modal Planejador IA -->
+    <div class="modal-overlay" x-show="modalPlanejadorAberto" x-cloak @click.self="modalPlanejadorAberto=false">
+        <div class="modal" style="max-width:500px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="font-size:17px; font-weight:600; color:#f1f5f9; display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="sparkles" style="width:18px;height:18px;color:#a78bfa;"></i>
+                    Planejador de Capacidade IA
+                </h2>
+                <button @click="modalPlanejadorAberto=false" style="color:#6b7280; background:none; border:none; cursor:pointer;">
+                    <i data-lucide="x" style="width:18px;height:18px;"></i>
+                </button>
+            </div>
+            
+            <div style="background:rgba(124,58,237,0.1); border:1px solid rgba(124,58,237,0.2); padding:12px; border-radius:8px; margin-bottom:20px; font-size:13px; color:#cbd5e1;">
+                Responda brevemente para a IA calcular sua capacidade mensal real.
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <label class="label">Quantas pessoas trabalham na produção?</label>
+                <input class="input" x-model="planejador.equipe" placeholder="Ex: 2 pessoas + eu">
+            </div>
+            <div style="margin-bottom:16px;">
+                <label class="label">Qual a jornada diária e dias por semana?</label>
+                <input class="input" x-model="planejador.jornada" placeholder="Ex: 8h por dia, segunda a sexta">
+            </div>
+            <div style="margin-bottom:20px;">
+                <label class="label">Alguma observação sobre produtividade?</label>
+                <textarea class="input" x-model="planejador.obs" rows="2" placeholder="Ex: Perdemos 20% do tempo em reuniões..."></textarea>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn-secondary" @click="modalPlanejadorAberto=false">Cancelar</button>
+                <button class="btn-primary" @click="calcularCapacidadeIA()" :disabled="planejando">
+                    <span x-show="!planejando">Calcular Capacidade</span>
+                    <span x-show="planejando">Analisando...</span>
+                </button>
+            </div>
+        </div>
+    </div>
                 <div style="margin-bottom:16px;">
                     <label class="label">Markup Desejado (%) *</label>
                     <input class="input" type="number" step="0.5" min="0" x-model="form.markup" required placeholder="Ex: 30">
@@ -155,6 +205,15 @@ function servicos() {
         form: {},
         totalCustosFixos: 0,
         horasMensais: 160,
+        
+        // Planejador IA
+        modalPlanejadorAberto: false,
+        planejando: false,
+        planejador: {
+            equipe: '',
+            jornada: '',
+            obs: ''
+        },
 
         async init() {
             await Promise.all([this.carregar(), this.carregarCustosFixos()]);
@@ -194,13 +253,48 @@ function servicos() {
                 entregaveis: '',
                 ferramentas: '',
                 terceirizacao: '',
+                horas_dia: '',
                 horas_estimadas:'', 
                 custo_producao:'', 
                 custos_variaveis:'0', 
                 markup:'30' 
             };
+            if (this.form.id && this.form.horas_estimadas) {
+                this.form.horas_dia = (parseFloat(this.form.horas_estimadas) / 22).toFixed(1);
+            }
             this.modalAberto = true;
             this.$nextTick(() => lucide.createIcons());
+        },
+
+        calcularHorasMensaisServico() {
+            const hDia = parseFloat(this.form.horas_dia || 0);
+            this.form.horas_estimadas = (hDia * 22).toFixed(1); // Média de 22 dias úteis
+        },
+
+        abrirPlanejadorIA() {
+            this.modalPlanejadorAberto = true;
+            this.$nextTick(() => lucide.createIcons());
+        },
+
+        async calcularCapacidadeIA() {
+            if (!this.planejador.equipe || !this.planejador.jornada) return;
+            this.planejando = true;
+            try {
+                const r = await fetch('<?= raizUrl('/api/precificacao/planejar-capacidade.php') ?>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.planejador)
+                });
+                const res = await r.json();
+                if (r.ok) {
+                    this.horasMensais = res.horas;
+                    toast(`Capacidade calculada: ${res.horas}h mensais`, 'sucesso');
+                    this.modalPlanejadorAberto = false;
+                } else {
+                    toast(res.erro || 'Erro ao calcular', 'erro');
+                }
+            } catch(e) { toast('Erro de conexão', 'erro'); }
+            this.planejando = false;
         },
 
         async salvar() {
