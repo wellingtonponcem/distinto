@@ -32,6 +32,10 @@ function menuAtivo(string $path): string {
             <i data-lucide="receipt-text" style="width:17px;height:17px;"></i>
             <span class="nav-label">Lancamentos</span>
         </a>
+        <a href="<?= raizUrl('/financeiro/contas.php') ?>" class="nav-link <?= menuAtivo('/financeiro/contas') ?>">
+            <i data-lucide="landmark" style="width:17px;height:17px;"></i>
+            <span class="nav-label">Bancos</span>
+        </a>
         <a href="<?= raizUrl('/financeiro/configuracoes.php') ?>" class="nav-link <?= menuAtivo('/financeiro/configuracoes') ?>">
             <i data-lucide="calculator" style="width:17px;height:17px;"></i>
             <span class="nav-label">Custos Fixos</span>

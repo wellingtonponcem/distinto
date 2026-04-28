@@ -70,6 +70,10 @@ try {
             $sets[] = 'custo_fixo_id=?';
             $params[] = empty($d['custo_fixo_id']) ? null : $d['custo_fixo_id'];
         }
+        if (tabelaTemColuna($db, 'lancamentos', 'conta_id')) {
+            $sets[] = 'conta_id=?';
+            $params[] = empty($d['conta_id']) ? null : $d['conta_id'];
+        }
         $params[] = $d['id'];
         
         $stmt = $db->prepare('UPDATE lancamentos SET ' . implode(',', $sets) . ' WHERE id=?');
@@ -188,6 +192,11 @@ function inserirLancamento(PDO $db, string $id, array $d, float $valor, string $
         $colunas[] = 'custo_fixo_id';
         $valores[] = '?';
         $params[] = $d['custo_fixo_id'] ?? null;
+    }
+    if (tabelaTemColuna($db, 'lancamentos', 'conta_id')) {
+        $colunas[] = 'conta_id';
+        $valores[] = '?';
+        $params[] = $d['conta_id'] ?? null;
     }
 
     $stmt = $db->prepare('INSERT INTO lancamentos (' . implode(',', $colunas) . ') VALUES (' . implode(',', $valores) . ')');

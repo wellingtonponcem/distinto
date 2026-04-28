@@ -1,0 +1,165 @@
+<?php
+require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../config/auth.php';
+require_once __DIR__ . '/../includes/helpers.php';
+
+exigirAutenticacao();
+
+$tituloPagina = "Contas Bancárias";
+require_once __DIR__ . '/../includes/layout/head.php';
+?>
+<div id="app-wrapper" x-data="contas">
+    <?php require_once __DIR__ . '/../includes/layout/sidebar.php'; ?>
+
+    <main id="main-content">
+        <div class="app-topbar">
+            <div>
+                <h1 class="page-title">Contas Bancárias</h1>
+                <p class="page-subtitle">Gerencie suas contas e saldos.</p>
+            </div>
+            <button @click="abrirModal()" class="btn-primary">
+                <i data-lucide="plus" style="width:16px;height:16px;"></i>
+                Nova Conta
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <template x-for="conta in lista" :key="conta.id">
+                <div class="card p-6 relative overflow-hidden">
+                    <div :style="'position:absolute; top:0; left:0; width:4px; height:100%; background:' + (conta.cor || '#2a2a2a')"></div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold" x-text="conta.nome"></h3>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="abrirModal(conta)" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                                <i data-lucide="edit-2" style="width:14px;height:14px;"></i>
+                            </button>
+                            <button @click="excluir(conta.id)" class="p-2 hover:bg-red-50 text-red-500 rounded-lg">
+                                <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-xs text-gray-500 uppercase font-bold mb-1">Saldo Atual</p>
+                            <div class="text-2xl font-black" :class="conta.saldo_atual < 0 ? 'text-red-500' : 'text-distinto-ink dark:text-white'" x-text="formatarMoeda(conta.saldo_atual)"></div>
+                        </div>
+                        <div class="pt-4 border-top border-gray-100 dark:border-gray-800">
+                            <p class="text-xs text-gray-500 mb-1">Saldo Inicial: <span x-text="formatarMoeda(conta.saldo_inicial)"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Modal -->
+        <div class="modal-overlay" x-show="modalAberto" x-cloak @click.self="modalAberto=false">
+            <div class="modal" style="max-width:450px;">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold" x-text="form.id ? 'Editar Conta' : 'Nova Conta'"></h2>
+                    <button @click="modalAberto=false"><i data-lucide="x"></i></button>
+                </div>
+
+                <form @submit.prevent="salvar()">
+                    <div class="mb-4">
+                        <label class="label">Nome do Banco / Conta</label>
+                        <input class="input" x-model="form.nome" required placeholder="Ex: C6 Bank, Itaú PJ...">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="label">Saldo Inicial (Ajuste)</label>
+                        <input class="input" type="number" step="0.01" x-model="form.saldo_inicial" placeholder="0.00">
+                        <p class="text-[10px] text-gray-500 mt-1">O saldo atual será calculado somando este valor aos lançamentos efetivados.</p>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="label">Cor de Identificação</label>
+                        <div class="flex gap-2">
+                            <template x-for="c in cores">
+                                <button type="button" @click="form.cor = c" 
+                                    class="w-8 h-8 rounded-full border-2 transition-all"
+                                    :style="'background:' + c"
+                                    :class="form.cor === c ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-50'"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3 justify-end">
+                        <button type="button" class="btn-secondary" @click="modalAberto=false">Cancelar</button>
+                        <button type="submit" class="btn-primary" :disabled="salvando" x-text="salvando ? 'Salvando...' : 'Salvar Conta'"></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('contas', () => ({
+        lista: [],
+        modalAberto: false,
+        salvando: false,
+        form: {},
+        cores: ['#2a2a2a', '#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#db2777'],
+
+        async init() {
+            await this.carregar();
+        },
+
+        async carregar() {
+            try {
+                const r = await fetch('<?= raizUrl('/api/financeiro/contas.php') ?>');
+                this.lista = await r.json();
+                this.$nextTick(() => lucide.createIcons());
+            } catch(e) { toast('Erro ao carregar contas', 'erro'); }
+        },
+
+        abrirModal(conta = null) {
+            this.form = conta ? { ...conta } : { nome: '', saldo_inicial: 0, cor: '#2a2a2a' };
+            this.modalAberto = true;
+            this.$nextTick(() => lucide.createIcons());
+        },
+
+        async salvar() {
+            this.salvando = true;
+            try {
+                const metodo = this.form.id ? 'PUT' : 'POST';
+                const r = await fetch('<?= raizUrl('/api/financeiro/contas.php') ?>', {
+                    method: metodo,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.form)
+                });
+                if (r.ok) {
+                    await this.carregar();
+                    this.modalAberto = false;
+                    toast('Conta salva com sucesso!', 'sucesso');
+                } else {
+                    const res = await r.json();
+                    toast(res.erro || 'Erro ao salvar', 'erro');
+                }
+            } catch(e) { toast('Erro de conexão', 'erro'); }
+            this.salvando = false;
+        },
+
+        async excluir(id) {
+            if (!confirm('Deseja realmente excluir esta conta?')) return;
+            try {
+                const r = await fetch('<?= raizUrl('/api/financeiro/contas.php?id=') ?>' + id, { method: 'DELETE' });
+                if (r.ok) {
+                    await this.carregar();
+                    toast('Conta excluída', 'sucesso');
+                }
+            } catch(e) { toast('Erro ao excluir', 'erro'); }
+        },
+
+        formatarMoeda(v) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+        }
+    }));
+});
+</script>
+
+<?php require_once __DIR__ . '/../includes/layout/footer.php'; ?>

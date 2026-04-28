@@ -136,7 +136,14 @@ include __DIR__ . '/../includes/layout/head.php';
                             </span>
                             <div>
                                 <div style="color:#e2e8f0; font-weight:500; cursor:pointer;" @click="abrirModal(l)" x-text="l.descricao" class="hover-underline"></div>
-                                <div style="color:#6b7280; font-size:12px;" x-text="l.cliente_fornecedor || l.categoria"></div>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <template x-if="l.conta_id">
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 font-bold border border-gray-700" 
+                                              :style="'border-color:' + (contas.find(c=>c.id===l.conta_id)?.cor || '#333')"
+                                              x-text="contas.find(c=>c.id===l.conta_id)?.nome"></span>
+                                    </template>
+                                    <div style="color:#6b7280; font-size:12px;" x-text="l.cliente_fornecedor || l.categoria"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -235,6 +242,16 @@ include __DIR__ . '/../includes/layout/head.php';
                         <label class="label">Cliente / Fornecedor</label>
                         <input class="input" x-model="form.cliente_fornecedor" placeholder="Nome">
                     </div>
+                </div>
+
+                <div style="margin-bottom:16px;">
+                    <label class="label">Conta Bancária</label>
+                    <select class="select" x-model="form.conta_id">
+                        <option value="">— Selecione o Banco —</option>
+                        <template x-for="c in contas" :key="c.id">
+                            <option :value="c.id" x-text="c.nome"></option>
+                        </template>
+                    </select>
                 </div>
 
                 <div style="margin-bottom:16px;">
@@ -338,8 +355,17 @@ include __DIR__ . '/../includes/layout/head.php';
                     <i data-lucide="x" style="width:18px;height:18px;"></i>
                 </button>
             </div>
-            <div style="font-size:13px; color:#94a3b8; margin-bottom:16px;">
-                Revise os lançamentos do seu extrato e vincule-os a contas já existentes ou importe-os como novos pagamentos/recebimentos.
+            <div style="font-size:13px; color:#94a3b8; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+                <span>Revise os lançamentos do seu extrato e escolha a conta destino.</span>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <label class="label" style="margin:0;">Conta Destino:</label>
+                    <select class="select" x-model="ofxContaId" style="width:200px;">
+                        <option value="">Selecione...</option>
+                        <template x-for="c in contas" :key="c.id">
+                            <option :value="c.id" x-text="c.nome"></option>
+                        </template>
+                    </select>
+                </div>
             </div>
 
             <div style="flex:1; overflow-y:auto; border:1px solid #1e293b; border-radius:8px; margin-bottom:20px;">
@@ -473,6 +499,8 @@ function lancamentos() {
         categoriasDinamicas: [],
         uploadingOfx: false,
         ofxTransacoes: [],
+        ofxContaId: '',
+        contas: [],
 
         get categoriasDisponiveis() {
             const padrao = ['serviços', 'produtos', 'aluguel', 'impostos', 'folha', 'marketing', 'outros'];
@@ -548,7 +576,17 @@ function lancamentos() {
             const params = new URLSearchParams(window.location.search);
             if (params.get('filtro')) this.filtros.status = params.get('filtro');
             this.aplicarPeriodo();
-            await this.carregarLancamentos();
+            await Promise.all([
+                this.carregarLancamentos(),
+                this.carregarContas()
+            ]);
+        },
+
+        async carregarContas() {
+            try {
+                const r = await fetch('<?= raizUrl('/api/financeiro/contas.php') ?>');
+                this.contas = await r.json();
+            } catch(e) {}
         },
 
         mudarModoPeriodo() {
@@ -636,7 +674,7 @@ function lancamentos() {
             this.form = lancamento ? { ...lancamento } : {
                 tipo: 'receber', modalidade: 'avista', descricao: '', valor: '',
                 vencimento: '', categoria: 'servicos', cliente_fornecedor: '',
-                forma_pagamento: '', total_parcelas: '', frequencia: 'mensal',
+                forma_pagamento: '', conta_id: this.contas[0]?.id || '', total_parcelas: '', frequencia: 'mensal',
                 data_termino: '', observacao: '', e_custo_fixo: false
             };
             this.categoriaCustom = ehPadrao ? '' : cat;
@@ -880,6 +918,7 @@ function lancamentos() {
                             status: 'pago',
                             vencimento: txn.data,
                             categoria: catFinal,
+                            conta_id: this.ofxContaId,
                             observacao: 'Importado via OFX'
                         })
                     });
