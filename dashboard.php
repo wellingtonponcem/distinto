@@ -26,15 +26,18 @@ $queryResumo->execute([$mesInicio, $mesFim, $mesInicio, $mesFim, $mesInicio, $me
 $resumo = $queryResumo->fetch();
 
 // Cálculo do Saldo Atual baseado na soma real dos bancos
-$stmtTotalBancos = $db->query("
-    SELECT 
-        COALESCE((SELECT SUM(saldo_inicial) FROM contas_bancarias WHERE ativo=1), 0) +
-        COALESCE((SELECT SUM(CASE WHEN tipo='receber' THEN valor_pago ELSE -valor_pago END) 
-         FROM lancamentos 
-         WHERE status IN ('pago', 'efetivado') 
-         AND conta_id IN (SELECT id FROM contas_bancarias WHERE ativo=1)), 0) as saldo_total
+$stmtSaldoInicial = $db->query("SELECT SUM(saldo_inicial) FROM contas_bancarias WHERE ativo=1");
+$saldoInicialTotal = (float)$stmtSaldoInicial->fetchColumn() ?: 0;
+
+$stmtFluxoBancos = $db->query("
+    SELECT SUM(CASE WHEN tipo='receber' THEN valor_pago ELSE -valor_pago END) 
+    FROM lancamentos 
+    WHERE status IN ('pago', 'efetivado') 
+    AND conta_id IN (SELECT id FROM contas_bancarias WHERE ativo=1)
 ");
-$saldoAtual = (float)$stmtTotalBancos->fetchColumn() ?: 0;
+$fluxoBancos = (float)$stmtFluxoBancos->fetchColumn() ?: 0;
+
+$saldoAtual = $saldoInicialTotal + $fluxoBancos;
 
 $receitasMes = $resumo['receitas_mes'] ?? 0;
 $despesasMes = $resumo['despesas_mes'] ?? 0;
