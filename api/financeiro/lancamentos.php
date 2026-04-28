@@ -154,11 +154,15 @@ function criarLancamento(PDO $db, array $d): void {
 
 function inserirLancamento(PDO $db, string $id, array $d, float $valor, string $venc, ?string $paiId = null, int $parcelaAtual = 1, ?int $totalParcelas = null): void {
     $colunas = ['id','tipo','descricao','valor','valor_pago','categoria','cliente_fornecedor','vencimento','status','modalidade','total_parcelas','parcela_atual','lancamento_pai_id','frequencia','data_termino','observacao'];
-    $valores = ['?','?','?','?','0','?','?','?',"'pendente'",'?','?','?','?','?','?','?'];
+    $valores = ['?','?','?','?','?','?','?','?','?','?','?','?','?','?','?','?'];
+    
+    $status = $d['status'] ?? 'pendente';
+    $valorPago = isset($d['valor_pago']) ? (float)$d['valor_pago'] : 0;
+    
     $params = [
-        $id, $d['tipo'], $d['descricao'], $valor,
+        $id, $d['tipo'], $d['descricao'], $valor, $valorPago,
         $d['categoria'] ?? 'outros', empty($d['cliente_fornecedor']) ? null : $d['cliente_fornecedor'],
-        $venc, $d['modalidade'] ?? 'avista',
+        $venc, $status, $d['modalidade'] ?? 'avista',
         $totalParcelas, $parcelaAtual, $paiId,
         empty($d['frequencia']) ? null : $d['frequencia'], 
         empty($d['data_termino']) ? null : $d['data_termino'],

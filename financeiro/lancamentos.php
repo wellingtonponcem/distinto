@@ -25,9 +25,17 @@ include __DIR__ . '/../includes/layout/head.php';
                     <span x-show="!uploadingOfx"><i data-lucide="file-up" style="width:15px;height:15px;"></i> Importar OFX</span>
                     <span x-show="uploadingOfx">⏳ Lendo arquivo...</span>
                 </button>
-                <button x-show="selecionados.length > 0" class="btn-secondary" @click="excluirSelecionados()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);" x-cloak>
-                    <i data-lucide="trash-2" style="width:15px;height:15px;"></i> Excluir (<span x-text="selecionados.length"></span>)
-                </button>
+                <div x-show="selecionados.length > 0" style="display:flex; gap:6px;" x-cloak>
+                    <button class="btn-secondary" @click="alterarStatusSelecionados('pago')" style="color:#10b981; border-color:rgba(16,185,129,0.3);">
+                        <i data-lucide="check-circle" style="width:15px;height:15px;"></i> Efetivar
+                    </button>
+                    <button class="btn-secondary" @click="alterarStatusSelecionados('pendente')" style="color:#f59e0b; border-color:rgba(245,158,11,0.3);">
+                        <i data-lucide="clock" style="width:15px;height:15px;"></i> Pendente
+                    </button>
+                    <button class="btn-secondary" @click="excluirSelecionados()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);">
+                        <i data-lucide="trash-2" style="width:15px;height:15px;"></i> Excluir (<span x-text="selecionados.length"></span>)
+                    </button>
+                </div>
                 <button class="btn-primary" @click="abrirModal()">
                     <i data-lucide="plus" style="width:15px;height:15px;"></i> Novo Lançamento
                 </button>
@@ -323,7 +331,7 @@ include __DIR__ . '/../includes/layout/head.php';
 
     <!-- Modal Conciliação OFX -->
     <div class="modal-overlay" x-show="modalOfxAberto" x-cloak>
-        <div class="modal" style="max-width:800px; width:100%; max-height:90vh; display:flex; flex-direction:column;">
+        <div class="modal" style="max-width:1200px; width:90%; max-height:90vh; display:flex; flex-direction:column;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                 <h2 style="font-size:17px; font-weight:600; color:#f1f5f9;">Conciliação Bancária (OFX)</h2>
                 <button @click="modalOfxAberto=false" style="color:#6b7280; background:none; border:none; cursor:pointer;">
@@ -716,6 +724,35 @@ function lancamentos() {
             } catch(e) { toast('Erro de conexão', 'erro'); }
         },
 
+        async alterarStatusSelecionados(novoStatus) {
+            if (this.selecionados.length === 0) return;
+            this.salvando = true;
+            try {
+                // Fazer isso de forma sequencial ou usando endpoint bulk se existir.
+                // Como não temos endpoint bulk update status, iteramos:
+                let concluidos = 0;
+                for (const id of this.selecionados) {
+                    const l = this.lista.find(i => i.id === id);
+                    if (!l) continue;
+                    
+                    const payload = { ...l, status: novoStatus };
+                    if (novoStatus === 'pago') payload.valor_pago = l.valor;
+                    if (novoStatus === 'pendente') payload.valor_pago = 0;
+
+                    await fetch('<?= raizUrl('/api/financeiro/lancamentos.php') ?>', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    concluidos++;
+                }
+                toast(`${concluidos} lançamento(s) atualizado(s)!`, 'sucesso');
+                this.selecionados = [];
+                await this.carregarLancamentos();
+            } catch(e) { toast('Erro ao atualizar status', 'erro'); }
+            this.salvando = false;
+        },
+
         async excluirSelecionados() {
             if (this.selecionados.length === 0) return;
             if (!confirm(`Excluir ${this.selecionados.length} lançamento(s)?`)) return;
@@ -839,6 +876,8 @@ function lancamentos() {
                             tipo: txn.tipo,
                             descricao: txn.descricao + ' (OFX)',
                             valor: txn.valor,
+                            valor_pago: txn.valor,
+                            status: 'pago',
                             vencimento: txn.data,
                             categoria: catFinal,
                             observacao: 'Importado via OFX'
