@@ -14,19 +14,23 @@ $mesFim = date('Y-m-t');
 
 $queryResumo = $db->prepare("
     SELECT
-        SUM(CASE WHEN tipo='receber' THEN valor_pago ELSE 0 END) as total_recebido,
-        SUM(CASE WHEN tipo='pagar' THEN valor_pago ELSE 0 END) as total_pago,
+        SUM(CASE WHEN tipo='receber' AND status='pago' THEN valor_pago ELSE 0 END) as total_recebido,
+        SUM(CASE WHEN tipo='pagar' AND status='pago' THEN valor_pago ELSE 0 END) as total_pago,
+        SUM(CASE WHEN tipo='receber' AND vencimento BETWEEN ? AND ? AND status='pago' THEN valor_pago ELSE 0 END) as receitas_mes,
+        SUM(CASE WHEN tipo='pagar'   AND vencimento BETWEEN ? AND ? AND status='pago' THEN valor_pago ELSE 0 END) as despesas_mes,
         SUM(CASE WHEN tipo='receber' AND vencimento BETWEEN ? AND ? AND status NOT IN ('pago','cancelado') THEN (valor - valor_pago) ELSE 0 END) as receber_mes,
         SUM(CASE WHEN tipo='pagar'   AND vencimento BETWEEN ? AND ? AND status NOT IN ('pago','cancelado') THEN (valor - valor_pago) ELSE 0 END) as pagar_mes
     FROM lancamentos WHERE status != 'cancelado'
 ");
-$queryResumo->execute([$mesInicio, $mesFim, $mesInicio, $mesFim]);
+$queryResumo->execute([$mesInicio, $mesFim, $mesInicio, $mesFim, $mesInicio, $mesFim, $mesInicio, $mesFim]);
 $resumo = $queryResumo->fetch();
 
 $saldoAtual = ($resumo['total_recebido'] ?? 0) - ($resumo['total_pago'] ?? 0);
+$receitasMes = $resumo['receitas_mes'] ?? 0;
+$despesasMes = $resumo['despesas_mes'] ?? 0;
 $receberMes = $resumo['receber_mes'] ?? 0;
 $pagarMes = $resumo['pagar_mes'] ?? 0;
-$resultadoPrev = $receberMes - $pagarMes;
+$resultadoPrev = ($receitasMes + $receberMes) - ($despesasMes + $pagarMes);
 
 // Buscar contagem de itens para os KPIs
 $stmtQtdRec = $db->prepare("SELECT COUNT(*) FROM lancamentos WHERE tipo='receber' AND vencimento BETWEEN ? AND ? AND status NOT IN ('pago','cancelado')");
@@ -56,29 +60,33 @@ $proximas = $db->prepare("
 $proximas->execute([$hoje, $seteDias]);
 $contasProximas = $proximas->fetchAll();
 
-$fluxo30 = $db->prepare("
+$fluxoMes = $db->prepare("
     SELECT DATE(vencimento) as data,
-           SUM(CASE WHEN tipo='receber' THEN (valor - valor_pago) ELSE 0 END) as entradas,
-           SUM(CASE WHEN tipo='pagar'   THEN (valor - valor_pago) ELSE 0 END) as saidas
+           SUM(CASE WHEN tipo='receber' THEN valor ELSE 0 END) as entradas,
+           SUM(CASE WHEN tipo='pagar'   THEN valor ELSE 0 END) as saidas
     FROM lancamentos
-    WHERE vencimento BETWEEN ? AND DATE_ADD(?, INTERVAL 30 DAY)
-      AND status NOT IN ('pago', 'cancelado')
+    WHERE vencimento BETWEEN ? AND ?
+      AND status != 'cancelado'
     GROUP BY DATE(vencimento)
     ORDER BY data ASC
 ");
-$fluxo30->execute([$hoje, $hoje]);
-$dadosFluxo = $fluxo30->fetchAll();
+$fluxoMes->execute([$mesInicio, $mesFim]);
+$dadosFluxo = $fluxoMes->fetchAll();
 
 $bars = [];
 $maxBar = 1;
-for ($i = 0; $i < 31; $i++) {
-    $data = date('Y-m-d', strtotime("+$i days"));
+
+$dInicio = new DateTime($mesInicio);
+$dFim = new DateTime($mesFim);
+while ($dInicio <= $dFim) {
+    $data = $dInicio->format('Y-m-d');
     $bars[$data] = [
-        'dia' => (int) date('d', strtotime($data)),
+        'dia' => (int) $dInicio->format('d'),
         'valor' => 0,
         'entradas' => 0,
         'saidas' => 0,
     ];
+    $dInicio->modify('+1 day');
 }
 
 foreach ($dadosFluxo as $row) {
@@ -91,10 +99,12 @@ foreach ($dadosFluxo as $row) {
 }
 
 $kpis = [
-    ['label' => 'Saldo Atual', 'value' => $saldoAtual, 'trend' => 'Geral', 'up' => $saldoAtual >= 0],
-    ['label' => 'A Receber no Mês', 'value' => $receberMes, 'trend' => $qtdReceber . ' itens', 'up' => true],
-    ['label' => 'A Pagar no Mês', 'value' => $pagarMes, 'trend' => $qtdPagar . ' itens', 'up' => false],
-    ['label' => 'Resultado Previsto', 'value' => $resultadoPrev, 'trend' => $resultadoPrev >= 0 ? 'Positivo' : 'Negativo', 'up' => $resultadoPrev >= 0],
+    ['label' => 'Saldo Atual', 'value' => $saldoAtual, 'trend' => 'Caixa real', 'up' => $saldoAtual >= 0],
+    ['label' => 'Receitas (Mês Realizado)', 'value' => $receitasMes, 'trend' => 'Efetivado', 'up' => true],
+    ['label' => 'Despesas (Mês Realizado)', 'value' => $despesasMes, 'trend' => 'Efetivado', 'up' => false],
+    ['label' => 'A Receber (Restante Mês)', 'value' => $receberMes, 'trend' => 'Pendente', 'up' => true],
+    ['label' => 'A Pagar (Restante Mês)', 'value' => $pagarMes, 'trend' => 'Pendente', 'up' => false],
+    ['label' => 'Resultado Previsto', 'value' => $resultadoPrev, 'trend' => 'Final do Mês', 'up' => $resultadoPrev >= 0],
 ];
 
 include __DIR__ . '/includes/layout/head.php';
@@ -135,7 +145,7 @@ include __DIR__ . '/includes/layout/head.php';
             </div>
         </div>
 
-        <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+        <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-5">
             <?php foreach ($kpis as $kpi): ?>
                 <article class="card p-6 min-h-[116px] flex flex-col justify-between">
                     <div class="flex items-start justify-between gap-4">
@@ -157,11 +167,11 @@ include __DIR__ . '/includes/layout/head.php';
         <section class="card p-5 lg:p-7 mb-5">
             <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8">
                 <div>
-                    <p class="text-[12px] font-bold text-zinc-500">Fluxo de Caixa</p>
+                    <p class="text-[12px] font-bold text-zinc-500">Fluxo de Caixa (Mês Atual)</p>
                     <h2 class="mt-1 text-[24px] font-extrabold tracking-[-0.04em] text-zinc-950">
                         <?= formatarMoeda((float) array_sum(array_column($bars, 'valor'))) ?>
                     </h2>
-                    <p class="mt-1 text-xs font-medium text-zinc-400">Entradas e saidas previstas para os proximos 30 dias.</p>
+                    <p class="mt-1 text-xs font-medium text-zinc-400">Movimentações efetivadas e previstas do dia 1 ao fim do mês.</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button class="btn-secondary" style="min-height:32px; padding:7px 10px;">
