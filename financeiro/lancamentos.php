@@ -20,9 +20,10 @@ include __DIR__ . '/../includes/layout/head.php';
                 <p style="font-size:14px; color:#6b7280; margin-top:2px;">Contas a pagar e a receber</p>
             </div>
             <div style="display:flex; gap:10px;">
-                <input type="file" x-ref="ofxInput" @change="uploadOfx" style="display:none" accept=".ofx">
-                <button class="btn-secondary" @click="$refs.ofxInput.click()" style="color:#6366f1; border-color:rgba(99,102,241,0.3);">
-                    <i data-lucide="file-up" style="width:15px;height:15px;"></i> Importar OFX
+                <input type="file" x-ref="ofxInput" @change="uploadOfx" style="display:none" accept=".ofx,.OFX">
+                <button class="btn-secondary" @click="$refs.ofxInput.click()" style="color:#6366f1; border-color:rgba(99,102,241,0.3);" :disabled="uploadingOfx">
+                    <span x-show="!uploadingOfx"><i data-lucide="file-up" style="width:15px;height:15px;"></i> Importar OFX</span>
+                    <span x-show="uploadingOfx">⏳ Lendo arquivo...</span>
                 </button>
                 <button x-show="selecionados.length > 0" class="btn-secondary" @click="excluirSelecionados()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);" x-cloak>
                     <i data-lucide="trash-2" style="width:15px;height:15px;"></i> Excluir (<span x-text="selecionados.length"></span>)
@@ -313,6 +314,73 @@ include __DIR__ . '/../includes/layout/head.php';
             </template>
         </div>
     </div>
+    </div>
+
+    <!-- Modal Conciliação OFX -->
+    <div class="modal-overlay" x-show="modalOfxAberto" x-cloak>
+        <div class="modal" style="max-width:800px; width:100%; max-height:90vh; display:flex; flex-direction:column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="font-size:17px; font-weight:600; color:#f1f5f9;">Conciliação Bancária (OFX)</h2>
+                <button @click="modalOfxAberto=false" style="color:#6b7280; background:none; border:none; cursor:pointer;">
+                    <i data-lucide="x" style="width:18px;height:18px;"></i>
+                </button>
+            </div>
+            <div style="font-size:13px; color:#94a3b8; margin-bottom:16px;">
+                Revise os lançamentos do seu extrato e vincule-os a contas já existentes ou importe-os como novos pagamentos/recebimentos.
+            </div>
+
+            <div style="flex:1; overflow-y:auto; border:1px solid #1e293b; border-radius:8px; margin-bottom:20px;">
+                <table style="width:100%; text-align:left; font-size:13px; border-collapse:collapse;">
+                    <thead style="background:#0f172a; position:sticky; top:0; z-index:10;">
+                        <tr>
+                            <th style="padding:10px 12px; color:#94a3b8; font-weight:600;">Data</th>
+                            <th style="padding:10px 12px; color:#94a3b8; font-weight:600;">Descrição (OFX)</th>
+                            <th style="padding:10px 12px; color:#94a3b8; font-weight:600;">Valor</th>
+                            <th style="padding:10px 12px; color:#94a3b8; font-weight:600;">Ação</th>
+                            <th style="padding:10px 12px; color:#94a3b8; font-weight:600; width:160px;">Categoria</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(txn, i) in ofxTransacoes" :key="i">
+                            <tr style="border-bottom:1px solid #1e293b;">
+                                <td style="padding:10px 12px; color:#cbd5e1;" x-text="formatarData(txn.data)"></td>
+                                <td style="padding:10px 12px; color:#cbd5e1;" x-text="txn.descricao"></td>
+                                <td style="padding:10px 12px; font-weight:600;" :style="txn.tipo==='receber'?'color:#10b981':'color:#ef4444'" x-text="formatarMoeda(txn.valor)"></td>
+                                <td style="padding:10px 12px;">
+                                    <select class="select" x-model="txn.acao_id" style="width:100%; padding:4px 8px; font-size:12px; height:auto; min-height:28px;">
+                                        <option value="novo">✨ Criar como Novo (Pago)</option>
+                                        <option value="ignorar">❌ Ignorar / Não Importar</option>
+                                        <optgroup label="Vincular a Pendente:">
+                                            <template x-for="l in buscarPendentesParaOfx(txn)">
+                                                <option :value="l.id" x-text="formatarData(l.vencimento) + ' - ' + l.descricao + ' (' + formatarMoeda(l.valor) + ')'"></option>
+                                            </template>
+                                        </optgroup>
+                                    </select>
+                                </td>
+                                <td style="padding:10px 12px;">
+                                    <select class="select" x-model="txn.categoria" style="width:100%; padding:4px 8px; font-size:12px; height:auto; min-height:28px;" x-show="txn.acao_id === 'novo'">
+                                        <option value="">(Sem categoria)</option>
+                                        <template x-for="cat in categoriasDisponiveis" :key="cat">
+                                            <option :value="cat" x-text="cat.charAt(0).toUpperCase() + cat.slice(1)"></option>
+                                        </template>
+                                    </select>
+                                    <span x-show="txn.acao_id !== 'novo' && txn.acao_id !== 'ignorar'" style="font-size:11px; color:#6b7280;">Automático</span>
+                                    <span x-show="txn.acao_id === 'ignorar'" style="font-size:11px; color:#6b7280;">-</span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:12px;">
+                <button class="btn-secondary" @click="modalOfxAberto=false">Cancelar</button>
+                <button class="btn-primary" @click="processarOfx()">
+                    Confirmar Importação
+                </button>
+            </div>
+        </div>
+    </div>
 
 </div>
 
@@ -334,6 +402,7 @@ function lancamentos() {
         categoriaCustom: '',
         mostrarCampoCustom: false,
         modalOfxAberto: false,
+        uploadingOfx: false,
         ofxTransacoes: [],
 
         get categoriasDisponiveis() {
@@ -605,18 +674,28 @@ function lancamentos() {
             const formData = new FormData();
             formData.append('arquivo', file);
             
-            toast('Lendo arquivo OFX...', 'info');
+            this.uploadingOfx = true;
+            toast('Enviando arquivo OFX...', 'info');
             try {
                 const r = await fetch('<?= raizUrl('/api/financeiro/upload-ofx.php') ?>', {
                     method: 'POST',
                     body: formData
                 });
-                const res = await r.json();
+                
+                // Tratar erro HTML ou resposta que não é JSON
+                let res;
+                try {
+                    res = await r.json();
+                } catch (jsonErr) {
+                    toast('O servidor retornou uma resposta inválida. Tente outro arquivo.', 'erro');
+                    this.uploadingOfx = false;
+                    return;
+                }
+
                 if (r.ok) {
                     this.ofxTransacoes = res.transacoes.map(t => {
-                        // Tentar achar um match automático
                         const match = this.buscarPendentesParaOfx(t)[0];
-                        return { ...t, acao_id: match ? match.id : 'novo' };
+                        return { ...t, acao_id: match ? match.id : 'novo', categoria: 'outros' };
                     });
                     this.modalOfxAberto = true;
                     this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
@@ -626,6 +705,7 @@ function lancamentos() {
             } catch (err) {
                 toast('Erro de conexão ao enviar OFX', 'erro');
             }
+            this.uploadingOfx = false;
             e.target.value = ''; // Reset file input
         },
 
@@ -659,7 +739,7 @@ function lancamentos() {
                             descricao: txn.descricao + ' (OFX)',
                             valor: txn.valor,
                             vencimento: txn.data,
-                            categoria: 'outros',
+                            categoria: txn.categoria || 'outros',
                             observacao: 'Importado via OFX'
                         })
                     });
