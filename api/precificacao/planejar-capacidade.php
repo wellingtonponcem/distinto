@@ -24,7 +24,7 @@ $configDb = $db->query("SELECT groq_api_key FROM configuracao_empresa WHERE id='
 $apiKey = !empty($configDb['groq_api_key']) ? $configDb['groq_api_key'] : (defined('GROQ_API_KEY') ? GROQ_API_KEY : '');
 
 if (!$apiKey) {
-    responderJson(['erro' => 'Groq API Key não configurada'], 503);
+    responderJson(['erro' => 'Groq API Key não configurada. Vá em Configurações e salve sua chave.'], 503);
 }
 
 $prompt = <<<PROMPT
@@ -70,7 +70,9 @@ $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if ($httpCode !== 200) {
-    responderJson(['erro' => 'Erro na API de IA'], 502);
+    $errData = json_decode($resposta, true);
+    $msg = $errData['error']['message'] ?? 'Erro desconhecido na API de IA';
+    responderJson(['erro' => $msg], 502);
 }
 
 $dados = json_decode($resposta, true);
@@ -78,6 +80,9 @@ $texto = trim($dados['choices'][0]['message']['content'] ?? '');
 
 // Extrair apenas o número
 preg_match('/\d+/', $texto, $matches);
-$horas = isset($matches[0]) ? (int)$matches[0] : 160;
+if (!isset($matches[0])) {
+    responderJson(['erro' => 'A IA não conseguiu determinar um número. Tente ser mais específico nas respostas.'], 422);
+}
+$horas = (int)$matches[0];
 
 responderJson(['ok' => true, 'horas' => $horas]);

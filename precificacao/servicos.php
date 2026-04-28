@@ -218,7 +218,7 @@ function servicos() {
         modalAberto: false,
         form: {},
         totalCustosFixos: 0,
-        horasMensais: 160,
+        horasMensais: parseInt(localStorage.getItem('cap_horas_mensais') || 160),
         
         // Planejador IA
         modalPlanejadorAberto: false,
@@ -303,8 +303,14 @@ function servicos() {
                 });
                 const res = await r.json();
                 if (r.ok) {
-                    this.horasMensais = res.horas;
-                    toast(`Capacidade calculada: ${res.horas}h mensais`, 'sucesso');
+                    const horasResult = parseInt(res.horas);
+                    if (isNaN(horasResult) || horasResult <= 0) {
+                        toast('IA retornou um valor inválido', 'erro');
+                        return;
+                    }
+                    this.horasMensais = horasResult;
+                    localStorage.setItem('cap_horas_mensais', horasResult);
+                    toast(`Sucesso! Capacidade ajustada para ${horasResult}h`, 'sucesso');
                     this.modalPlanejadorAberto = false;
                 } else {
                     toast(res.erro || 'Erro ao calcular', 'erro');
