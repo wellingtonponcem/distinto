@@ -318,8 +318,14 @@ function lancamentos() {
             this.carregando = true;
             try {
                 const r = await fetch('<?= raizUrl('/api/financeiro/lancamentos.php') ?>');
-                this.lista = await r.json();
-            } catch(e) { toast('Erro ao carregar lançamentos', 'erro'); }
+                const data = await r.json();
+                if (!r.ok) {
+                    throw new Error(data.erro || 'Erro HTTP ' + r.status);
+                }
+                this.lista = data;
+            } catch(e) { 
+                toast(e.message || 'Erro ao carregar lançamentos', 'erro'); 
+            }
             this.carregando = false;
         },
 

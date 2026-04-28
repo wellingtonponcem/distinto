@@ -9,9 +9,10 @@ exigirAutenticacao();
 
 $db     = Database::get();
 $metodo = $_SERVER['REQUEST_METHOD'];
-garantirEstruturaFinanceira($db);
 
-switch ($metodo) {
+try {
+    garantirEstruturaFinanceira($db);
+    switch ($metodo) {
     case 'GET':
         sincronizarLancamentosCustosFixos($db);
         $rows = $db->query("
@@ -59,8 +60,11 @@ switch ($metodo) {
         $db->prepare('DELETE FROM lancamentos WHERE id=?')->execute([$id]);
         responderJson(['ok' => true]);
 
-    default:
-        responderJson(['erro' => 'Método não permitido'], 405);
+        default:
+            responderJson(['erro' => 'Método não permitido'], 405);
+    }
+} catch (Throwable $e) {
+    responderJson(['erro' => 'Erro interno: ' . $e->getMessage() . ' na linha ' . $e->getLine()], 500);
 }
 
 function validarLancamento(array $d): void {
