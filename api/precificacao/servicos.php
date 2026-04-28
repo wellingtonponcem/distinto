@@ -10,20 +10,30 @@ $db     = Database::get();
 $metodo = $_SERVER['REQUEST_METHOD'];
 
 // Garantir estrutura
-function garantirColunaServicos(PDO $db, string $coluna, string $definicao): void {
-    try {
-        $stmt = $db->prepare("SHOW COLUMNS FROM servicos LIKE ?");
-        $stmt->execute([$coluna]);
-        if ($stmt->fetch()) return;
-        $db->exec("ALTER TABLE servicos ADD COLUMN {$coluna} {$definicao}");
-    } catch (Exception $e) {}
+function garantirEstruturaServicos(PDO $db): void {
+    $stmt = $db->query("DESCRIBE servicos");
+    $colunasExistentes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    $novas = [
+        'entregaveis'    => "TEXT NULL",
+        'ferramentas'    => "TEXT NULL",
+        'terceirizacao'  => "TEXT NULL",
+        'periodicidade'  => "VARCHAR(20) NOT NULL DEFAULT 'mensal'",
+        'prazo_minimo'   => "INT NOT NULL DEFAULT 0"
+    ];
+
+    foreach ($novas as $col => $def) {
+        if (!in_array($col, $colunasExistentes, true)) {
+            $db->exec("ALTER TABLE servicos ADD COLUMN {$col} {$def}");
+        }
+    }
 }
 
-garantirColunaServicos($db, 'entregaveis', "TEXT NULL");
-garantirColunaServicos($db, 'ferramentas', "TEXT NULL");
-garantirColunaServicos($db, 'terceirizacao', "TEXT NULL");
-garantirColunaServicos($db, 'periodicidade', "VARCHAR(20) NOT NULL DEFAULT 'mensal'");
-garantirColunaServicos($db, 'prazo_minimo', "INT NOT NULL DEFAULT 0");
+try {
+    garantirEstruturaServicos($db);
+} catch (Exception $e) {
+    // Se falhar a migração automática, o erro aparecerá no INSERT/UPDATE
+}
 
 switch ($metodo) {
     case 'GET':
