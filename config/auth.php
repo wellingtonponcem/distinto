@@ -21,6 +21,14 @@ function estaAutenticado(): bool {
 
 function exigirAutenticacao(): void {
     if (!estaAutenticado()) {
+        // Se for uma requisição de API, responde com JSON em vez de redirecionar
+        if (str_contains($_SERVER['SCRIPT_NAME'], '/api/')) {
+            http_response_code(401);
+            header('Content-Type: application/json');
+            echo json_encode(['erro' => 'Sessão expirada ou não autenticado. Faça login novamente.']);
+            exit;
+        }
+
         $base = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
         // Calcula profundidade do arquivo atual para achar o index.php
         $depth = substr_count(str_replace($base, '', $_SERVER['SCRIPT_NAME']), '/') - 1;

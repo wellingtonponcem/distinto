@@ -135,15 +135,26 @@ document.addEventListener('alpine:init', () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(this.form)
                 });
+                
+                const resText = await r.text();
+                let res;
+                try {
+                    res = JSON.parse(resText);
+                } catch(e) {
+                    throw new Error('Resposta inválida do servidor: ' + resText.substring(0, 100));
+                }
+
                 if (r.ok) {
                     await this.carregar();
                     this.modalAberto = false;
                     toast('Usuário salvo!', 'sucesso');
                 } else {
-                    const res = await r.json();
                     toast(res.erro || 'Erro ao salvar', 'erro');
                 }
-            } catch(e) { toast('Erro de conexão', 'erro'); }
+            } catch(e) { 
+                console.error(e);
+                toast(e.message || 'Erro de conexão', 'erro'); 
+            }
             this.salvando = false;
         },
 
