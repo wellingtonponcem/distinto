@@ -40,17 +40,23 @@ REGRAS DE CÁLCULO:
 1. Considere 22 dias úteis por mês em média.
 2. Aplique um fator de produtividade real (geralmente entre 70% e 80%) para descontar pausas, reuniões internas, idas ao banheiro, etc.
 3. Se o usuário informar perda de tempo nas observações, ajuste o fator.
-4. Retorne APENAS um número inteiro representando o total de horas mensais da equipe toda somada.
+4. Retorne APENAS o número inteiro final (ex: 280). Não use vírgulas, pontos ou símbolos de moeda. Apenas o número puro.
+5. Se não tiver certeza, use sua melhor estimativa profissional baseada nos dados. NUNCA diga que não pode calcular. Estime.
 
 EXEMPLO DE SAÍDA:
 160
 PROMPT;
 
+$systemPrompt = "Você é um robô de cálculo de capacidade. Responda APENAS com o número inteiro de horas mensais. Não escreva textos, justificativas ou explicações. Apenas o número.";
+
 $payload = json_encode([
     'model'      => defined('GROQ_MODEL') ? GROQ_MODEL : 'llama3-70b-8192',
-    'messages'   => [['role' => 'user', 'content' => $prompt]],
+    'messages'   => [
+        ['role' => 'system', 'content' => $systemPrompt],
+        ['role' => 'user', 'content' => $prompt]
+    ],
     'max_tokens' => 10,
-    'temperature'=> 0.1,
+    'temperature'=> 0,
 ]);
 
 $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
