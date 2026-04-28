@@ -223,15 +223,15 @@ function custosFixos() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+                const res = await r.json();
                 if (r.ok) {
                     toast('Custo salvo!', 'sucesso');
                     this.modalAberto = false;
                     await this.carregar();
                 } else {
-                    const res = await r.json();
                     toast(res.erro || 'Erro ao salvar', 'erro');
                 }
-            } catch(e) { toast('Erro de conexão', 'erro'); }
+            } catch(e) { toast(e.message || 'Erro de conexão', 'erro'); }
             this.salvando = false;
         },
 

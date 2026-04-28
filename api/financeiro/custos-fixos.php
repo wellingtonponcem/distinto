@@ -9,9 +9,10 @@ exigirAutenticacao();
 
 $db = Database::get();
 $metodo = $_SERVER['REQUEST_METHOD'];
-garantirEstruturaFinanceira($db);
 
-switch ($metodo) {
+try {
+    garantirEstruturaFinanceira($db);
+    switch ($metodo) {
     case 'GET':
         sincronizarLancamentosCustosFixos($db);
         $rows = $db->query('SELECT * FROM custos_fixos ORDER BY categoria, nome')->fetchAll();
@@ -91,8 +92,11 @@ switch ($metodo) {
         $db->prepare('DELETE FROM custos_fixos WHERE id=?')->execute([$id]);
         responderJson(['ok' => true]);
 
-    default:
-        responderJson(['erro' => 'Metodo nao permitido'], 405);
+        default:
+            responderJson(['erro' => 'Metodo nao permitido'], 405);
+    }
+} catch (Throwable $e) {
+    responderJson(['erro' => 'Erro interno: ' . $e->getMessage() . ' na linha ' . $e->getLine()], 500);
 }
 
 function validarCustoFixo(array $d): void {
