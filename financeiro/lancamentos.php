@@ -57,19 +57,38 @@ include __DIR__ . '/../includes/layout/head.php';
                     <option value="cancelado">Cancelado</option>
                 </select>
             </div>
-            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; width:100%;">
-                <span style="font-size:13px; color:#6b7280; margin-right:4px;">Período:</span>
-                <input class="input" type="date" x-model="filtros.data_inicio" style="width:auto;">
-                <span style="color:#6b7280;">até</span>
-                <input class="input" type="date" x-model="filtros.data_fim" style="width:auto;">
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; width:100%; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+                <span style="font-size:13px; color:#6b7280; font-weight:600; margin-right:4px;">
+                    <i data-lucide="calendar" style="width:14px;height:14px; display:inline-block; vertical-align:middle; margin-top:-2px;"></i> Período:
+                </span>
                 
-                <div style="display:flex; gap:6px; margin-left:auto;">
-                    <button class="btn-secondary" @click="setPeriodo('hoje')" style="padding:6px 10px; font-size:12px;">Dia</button>
-                    <button class="btn-secondary" @click="setPeriodo('semana')" style="padding:6px 10px; font-size:12px;">Sem</button>
-                    <button class="btn-secondary" @click="setPeriodo('mes')" style="padding:6px 10px; font-size:12px;">Mês</button>
-                    <button class="btn-secondary" @click="setPeriodo('ano')" style="padding:6px 10px; font-size:12px;">Ano</button>
-                    <button class="btn-secondary" @click="filtros.data_inicio=''; filtros.data_fim=''" style="padding:6px 10px; font-size:12px;">Tudo</button>
-                </div>
+                <select class="select" x-model="periodoAtivo" @change="mudarModoPeriodo()" style="width:auto; min-width:130px; font-size:13px; padding:6px 10px;">
+                    <option value="mes">Mês</option>
+                    <option value="dia">Dia</option>
+                    <option value="semana">Semana / Específico</option>
+                    <option value="ano">Ano</option>
+                    <option value="tudo">Todo o histórico</option>
+                </select>
+
+                <template x-if="['dia', 'mes', 'ano'].includes(periodoAtivo)">
+                    <div style="display:flex; align-items:center; gap:4px; background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:2px;">
+                        <button class="btn-secondary" @click="deslocarPeriodo(-1)" style="padding:4px 8px; border:none; background:transparent; box-shadow:none;">
+                            <i data-lucide="chevron-left" style="width:16px;height:16px; color:#475569;"></i>
+                        </button>
+                        <span style="min-width:130px; text-align:center; font-weight:600; font-size:13px; color:#0f172a;" x-text="labelPeriodo()"></span>
+                        <button class="btn-secondary" @click="deslocarPeriodo(1)" style="padding:4px 8px; border:none; background:transparent; box-shadow:none;">
+                            <i data-lucide="chevron-right" style="width:16px;height:16px; color:#475569;"></i>
+                        </button>
+                    </div>
+                </template>
+
+                <template x-if="periodoAtivo === 'semana'">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input class="input" type="date" x-model="filtros.data_inicio" style="width:auto; padding:6px 10px; font-size:13px;">
+                        <span style="color:#6b7280; font-size:13px;">até</span>
+                        <input class="input" type="date" x-model="filtros.data_fim" style="width:auto; padding:6px 10px; font-size:13px;">
+                    </div>
+                </template>
             </div>
         </div>
 
@@ -311,6 +330,8 @@ function lancamentos() {
         lancamentoBaixa: null,
         valorBaixa: '',
         filtros: { tipo: '', status: '', data_inicio: '', data_fim: '', busca: '', categoria: '' },
+        periodoAtivo: 'mes',
+        referenciaData: new Date().toISOString().split('T')[0],
         selecionados: [],
         form: {},
         categoriaCustom: '',
@@ -358,36 +379,72 @@ function lancamentos() {
         },
 
         async init() {
-            // Pré-filtrar se vier da query string
             const params = new URLSearchParams(window.location.search);
             if (params.get('filtro')) this.filtros.status = params.get('filtro');
-            this.setPeriodo('mes'); // Padrão
+            this.aplicarPeriodo();
             await this.carregarLancamentos();
         },
 
-        setPeriodo(tipo) {
-            const hoje = new Date();
-            const y = hoje.getFullYear();
-            const m = String(hoje.getMonth() + 1).padStart(2, '0');
-            const d = String(hoje.getDate()).padStart(2, '0');
+        mudarModoPeriodo() {
+            this.referenciaData = new Date().toISOString().split('T')[0];
+            this.aplicarPeriodo();
+            this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
+        },
 
-            if (tipo === 'hoje') {
-                const hojeStr = `${y}-${m}-${d}`;
-                this.filtros.data_inicio = hojeStr;
-                this.filtros.data_fim = hojeStr;
-            } else if (tipo === 'semana') {
-                const primeiroDia = new Date(hoje.setDate(hoje.getDate() - hoje.getDay()));
-                const ultimoDia = new Date(hoje.setDate(hoje.getDate() - hoje.getDay() + 6));
-                this.filtros.data_inicio = primeiroDia.toISOString().split('T')[0];
-                this.filtros.data_fim = ultimoDia.toISOString().split('T')[0];
-            } else if (tipo === 'mes') {
-                const ultimoDia = new Date(y, hoje.getMonth() + 1, 0).getDate();
-                this.filtros.data_inicio = `${y}-${m}-01`;
-                this.filtros.data_fim = `${y}-${m}-${String(ultimoDia).padStart(2, '0')}`;
-            } else if (tipo === 'ano') {
+        deslocarPeriodo(offset) {
+            let [y, m, d] = this.referenciaData.split('-').map(Number);
+            let date = new Date(y, m - 1, d);
+            if (this.periodoAtivo === 'dia') date.setDate(date.getDate() + offset);
+            else if (this.periodoAtivo === 'mes') date.setMonth(date.getMonth() + offset);
+            else if (this.periodoAtivo === 'ano') date.setFullYear(date.getFullYear() + offset);
+            
+            const newY = date.getFullYear();
+            const newM = String(date.getMonth() + 1).padStart(2, '0');
+            const newD = String(date.getDate()).padStart(2, '0');
+            this.referenciaData = `${newY}-${newM}-${newD}`;
+            this.aplicarPeriodo();
+        },
+
+        aplicarPeriodo() {
+            if (this.periodoAtivo === 'tudo') {
+                this.filtros.data_inicio = '';
+                this.filtros.data_fim = '';
+                return;
+            }
+            if (this.periodoAtivo === 'semana') {
+                const h = new Date();
+                const dom = new Date(h.setDate(h.getDate() - h.getDay()));
+                const sab = new Date(h.setDate(h.getDate() - h.getDay() + 6));
+                this.filtros.data_inicio = dom.getFullYear() + '-' + String(dom.getMonth()+1).padStart(2,'0') + '-' + String(dom.getDate()).padStart(2,'0');
+                this.filtros.data_fim = sab.getFullYear() + '-' + String(sab.getMonth()+1).padStart(2,'0') + '-' + String(sab.getDate()).padStart(2,'0');
+                return;
+            }
+            
+            let [y, m, d] = this.referenciaData.split('-').map(Number);
+            if (this.periodoAtivo === 'dia') {
+                this.filtros.data_inicio = this.referenciaData;
+                this.filtros.data_fim = this.referenciaData;
+            } else if (this.periodoAtivo === 'mes') {
+                const ultimoDia = new Date(y, m, 0).getDate();
+                this.filtros.data_inicio = `${y}-${String(m).padStart(2,'0')}-01`;
+                this.filtros.data_fim = `${y}-${String(m).padStart(2,'0')}-${String(ultimoDia).padStart(2,'0')}`;
+            } else if (this.periodoAtivo === 'ano') {
                 this.filtros.data_inicio = `${y}-01-01`;
                 this.filtros.data_fim = `${y}-12-31`;
             }
+        },
+
+        labelPeriodo() {
+            let [y, m, d] = this.referenciaData.split('-').map(Number);
+            if (this.periodoAtivo === 'dia') {
+                return `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
+            } else if (this.periodoAtivo === 'mes') {
+                const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                return `${meses[m-1]} de ${y}`;
+            } else if (this.periodoAtivo === 'ano') {
+                return `${y}`;
+            }
+            return '';
         },
 
         async carregarLancamentos() {
