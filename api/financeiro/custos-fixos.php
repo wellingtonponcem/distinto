@@ -28,7 +28,7 @@ switch ($metodo) {
             $id,
             $d['nome'],
             $d['valor'],
-            $d['categoria'] ?? 'outros',
+            normalizarCategoriaParaTabela($db, 'custos_fixos', $d['categoria'] ?? 'outros'),
             $d['recorrencia'] ?? 'mensal',
         ];
         if (tabelaTemColuna($db, 'custos_fixos', 'dia_vencimento')) {
@@ -57,7 +57,7 @@ switch ($metodo) {
         $params = [
             $d['nome'],
             $d['valor'],
-            $d['categoria'] ?? 'outros',
+            normalizarCategoriaParaTabela($db, 'custos_fixos', $d['categoria'] ?? 'outros'),
             $d['recorrencia'] ?? 'mensal',
             $d['ativo'] ?? 1,
         ];
@@ -108,7 +108,7 @@ function atualizarLancamentosFuturos(PDO $db, string $custoId, array $d): void {
     $params = [
         $d['nome'],
         $d['valor'],
-        $d['categoria'] ?? 'outros',
+        normalizarCategoriaParaTabela($db, 'lancamentos', $d['categoria'] ?? 'outros'),
     ];
     if (tabelaTemColuna($db, 'lancamentos', 'forma_pagamento')) {
         $sets[] = 'forma_pagamento=?';

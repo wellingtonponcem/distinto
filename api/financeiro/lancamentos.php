@@ -37,7 +37,6 @@ switch ($metodo) {
         }
 
         criarLancamento($db, $d);
-        sincronizarLancamentosCustosFixos($db);
         responderJson(['ok' => true], 201);
 
     case 'PUT':
@@ -77,7 +76,8 @@ function criarCustoFixoFromLancamento(PDO $db, array $d): string {
 
     $colunas = ['id', 'nome', 'valor', 'categoria', 'recorrencia', 'ativo'];
     $valores = ['?', '?', '?', '?', "'mensal'", '1'];
-    $params = [$id, $d['descricao'], $d['valor'], $d['categoria'] ?? 'outros'];
+    $categoria = normalizarCategoriaParaTabela($db, 'custos_fixos', $d['categoria'] ?? 'outros');
+    $params = [$id, $d['descricao'], $d['valor'], $categoria];
 
     if (tabelaTemColuna($db, 'custos_fixos', 'dia_vencimento')) {
         $colunas[] = 'dia_vencimento';

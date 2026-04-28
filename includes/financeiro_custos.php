@@ -39,6 +39,19 @@ function tabelaTemColuna(PDO $db, string $tabela, string $coluna): bool {
     return colunaInfo($db, $tabela, $coluna) !== null;
 }
 
+function normalizarCategoriaParaTabela(PDO $db, string $tabela, string $categoria): string {
+    $info = colunaInfo($db, $tabela, 'categoria');
+    if (!$info) return $categoria ?: 'outros';
+
+    $tipo = strtolower($info['Type'] ?? '');
+    if (substr($tipo, 0, 5) !== 'enum(') return $categoria ?: 'outros';
+
+    preg_match_all("/'([^']+)'/", $info['Type'], $matches);
+    $permitidas = $matches[1] ?? [];
+    if (in_array($categoria, $permitidas, true)) return $categoria;
+    return in_array('outros', $permitidas, true) ? 'outros' : ($permitidas[0] ?? 'outros');
+}
+
 function sincronizarLancamentosCustosFixos(PDO $db, int $meses = 12): void {
     garantirEstruturaFinanceira($db);
 
@@ -114,7 +127,7 @@ function inserirContaPagarCustoFixo(PDO $db, array $custo, DateTime $venc): void
         gerarId(),
         $custo['nome'],
         $custo['valor'],
-        $custo['categoria'] ?? 'outros',
+        normalizarCategoriaParaTabela($db, 'lancamentos', $custo['categoria'] ?? 'outros'),
         $venc->format('Y-m-d'),
     ];
 
