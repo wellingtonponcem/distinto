@@ -58,9 +58,9 @@ function menuAtivo(string $path): string {
             <i data-lucide="package" style="width:17px;height:17px;"></i>
             <span class="nav-label">Tabela de Precos</span>
         </a>
-        <a href="<?= raizUrl('/precificacao/simulador.php') ?>" class="nav-link <?= menuAtivo('/simulador') ?>">
+        <a href="<?= raizUrl('/precificacao/consultor.php') ?>" class="nav-link <?= menuAtivo('/consultor') ?>">
             <i data-lucide="sparkles" style="width:17px;height:17px;"></i>
-            <span class="nav-label">Simulador IA</span>
+            <span class="nav-label">Consultor IA</span>
         </a>
 
         <div class="nav-section">Sistema</div>

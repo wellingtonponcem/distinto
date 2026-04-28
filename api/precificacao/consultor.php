@@ -1,0 +1,88 @@
+<?php
+require_once __DIR__ . '/../../config/env.php';
+require_once __DIR__ . '/../../config/auth.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/helpers.php';
+
+exigirAutenticacao();
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    responderJson(['erro' => 'Método não permitido'], 405);
+}
+
+$dados = lerCorpo();
+$mensagens = $dados['mensagens'] ?? [];
+
+if (empty($mensagens)) {
+    responderJson(['erro' => 'Histórico de mensagens vazio'], 400);
+}
+
+// Buscar contexto financeiro (Custos Fixos)
+$db = Database::get();
+$custos = $db->query("SELECT nome, valor, recorrencia FROM custos_fixos WHERE ativo=1")->fetchAll();
+$totalCustosFixos = array_reduce($custos, function($carry, $c) {
+    return $carry + ($c['recorrencia'] === 'anual' ? $c['valor'] / 12 : $c['valor']);
+}, 0);
+
+$custosStr = "";
+foreach($custos as $c) {
+    $custosStr .= "- {$c['nome']}: R$ " . number_format($c['valor'], 2, ',', '.') . " ({$c['recorrencia']})\n";
+}
+
+$systemPrompt = <<<PROMPT
+Você é um Consultor de Precificação Estratégica para uma agência de serviços variados (Marketing, Audiovisual, Design, etc.).
+Seu objetivo é ajudar o dono da agência a chegar no preço ideal para um serviço específico através de uma conversa consultiva.
+
+CONTEXTO FINANCEIRO DA AGÊNCIA:
+- Custo Fixo Mensal Total: R$ {$totalCustosFixos}
+- Detalhes dos custos:
+{$custosStr}
+
+REGRAS DA CONVERSA:
+1. Comece sendo cordial e pergunte qual serviço ele deseja precificar hoje.
+2. Uma vez que ele responder o serviço, faça perguntas inteligentes para entender os custos variáveis e a complexidade:
+   - Se for Audiovisual, pergunte sobre equipamentos (depreciação), diárias, locação, equipe.
+   - Se for Marketing/Design, pergunte sobre horas estimadas, ferramentas específicas, nível de senioridade exigido.
+   - Sempre pergunte se haverá terceirização ou custos diretos (anúncios, viagens, materiais).
+3. Seja breve em cada interação. Não faça 10 perguntas de uma vez. Faça 2 ou 3 perguntas chave por vez para manter a conversa fluida.
+4. Quando tiver informações suficientes, apresente um CÁLCULO SUGERIDO:
+   - Baseie o preço na: (Parcela do Custo Fixo + Custos Diretos + Margem de Lucro desejada).
+   - Sugira um valor final estratégico (valor cheio/arredondado).
+5. Use tom profissional, consultivo e focado em lucratividade. Responda em Português do Brasil e use Markdown.
+
+IMPORTANTE: Se o usuário pedir o preço cedo demais, explique que você precisa de mais detalhes sobre o escopo para não gerar prejuízo.
+PROMPT;
+
+$payload = json_encode([
+    'model' => GROQ_MODEL,
+    'messages' => array_merge(
+        [['role' => 'system', 'content' => $systemPrompt]],
+        $mensagens
+    ),
+    'temperature' => 0.7,
+    'max_tokens' => 1000
+]);
+
+$ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => $payload,
+    CURLOPT_HTTPHEADER => [
+        'Authorization: Bearer ' . GROQ_API_KEY,
+        'Content-Type: application/json'
+    ]
+]);
+
+$resposta = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($httpCode !== 200) {
+    responderJson(['erro' => 'Erro na API da IA'], 502);
+}
+
+$dadosIa = json_decode($resposta, true);
+$textoIa = $dadosIa['choices'][0]['message']['content'] ?? 'Desculpe, tive um problema ao processar sua resposta.';
+
+responderJson(['resposta' => $textoIa]);
