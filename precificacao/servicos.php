@@ -153,12 +153,23 @@ include __DIR__ . '/../includes/layout/head.php';
                         <input class="input" type="number" step="0.01" min="0" x-model="form.custos_variaveis" placeholder="Ferramentas, etc.">
                     </div>
                 </div>
-                <div style="margin-bottom:16px;">
-                    <label class="label">Markup Desejado (%) *</label>
-                    <input class="input" type="number" step="0.5" min="0" x-model="form.markup" required placeholder="Ex: 30">
-                    <p style="font-size:12px; color:#6b7280; margin-top:6px;">
-                        Preço mínimo calculado: <strong style="color:#a78bfa;" x-text="formatarMoeda(calcularPrecoMinimo(form))"></strong>
+                <div style="margin-bottom:16px; background:rgba(167,139,250,0.05); padding:16px; border-radius:8px; border:1px solid rgba(167,139,250,0.2);">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                        <label class="label" style="margin-bottom:0;">Preço de Venda Sugerido</label>
+                        <button type="button" class="btn-secondary" @click="sugerirPrecoIA()" :disabled="sugerindoPreco" style="padding:4px 8px; font-size:11px; border-color:#a78bfa; color:#a78bfa;">
+                            <i data-lucide="sparkles" style="width:12px;height:12px;"></i> 
+                            <span x-text="sugerindoPreco ? 'Analisando...' : 'Sugerir com IA'"></span>
+                        </button>
+                    </div>
+                    <div style="font-size:20px; font-weight:800; color:#a78bfa;" x-text="form.preco_venda ? formatarMoeda(form.preco_venda) : 'R$ 0,00'"></div>
+                    <p style="font-size:11px; color:#6b7280; margin-top:6px;">
+                        Piso mínimo (custo + rateio): <span x-text="formatarMoeda(calcularPrecoMinimo(form))"></span>
                     </p>
+                </div>
+                
+                <div style="margin-bottom:16px;">
+                    <label class="label">Markup Manual (%)</label>
+                    <input class="input" type="number" step="0.5" min="0" x-model="form.markup" @input="recalcularPrecoPeloMarkup()" placeholder="Ex: 30">
                 </div>
                 <div style="display:flex; gap:10px; justify-content:flex-end;">
                     <button type="button" class="btn-secondary" @click="modalAberto=false">Cancelar</button>
@@ -220,9 +231,8 @@ function servicos() {
         totalCustosFixos: 0,
         horasMensais: parseInt(localStorage.getItem('cap_horas_mensais') || 160),
         
-        // Planejador IA
-        modalPlanejadorAberto: false,
-        planejando: false,
+        // Sugestão de Preço IA
+        sugerindoPreco: false,
         planejador: {
             equipe: '',
             jornada: '',
@@ -278,8 +288,42 @@ function servicos() {
             if (this.form.id && this.form.horas_estimadas) {
                 this.form.horas_dia = (parseFloat(this.form.horas_estimadas) / 22).toFixed(1);
             }
+            if (!this.form.preco_venda) {
+                this.form.preco_venda = this.calcularPrecoMinimo(this.form);
+            }
             this.modalAberto = true;
             this.$nextTick(() => lucide.createIcons());
+        },
+
+        recalcularPrecoPeloMarkup() {
+            this.form.preco_venda = this.calcularPrecoMinimo(this.form);
+        },
+
+        async sugerirPrecoIA() {
+            if (!this.form.nome || !this.form.horas_estimadas) {
+                toast('Preencha o nome e as horas primeiro', 'aviso');
+                return;
+            }
+            this.sugerindoPreco = true;
+            try {
+                const r = await fetch('<?= raizUrl('/api/precificacao/sugerir-preco-servico.php') ?>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        servico: this.form,
+                        totalCustosFixos: this.totalCustosFixos,
+                        horasMensais: this.horasMensais,
+                        precoMinimo: this.calcularPrecoMinimo(this.form)
+                    })
+                });
+                const res = await r.json();
+                if (r.ok) {
+                    this.form.preco_venda = res.preco;
+                    this.form.markup = res.markup_sugerido;
+                    toast('Preço sugerido pela IA!', 'sucesso');
+                } else { toast(res.erro || 'Erro na IA', 'erro'); }
+            } catch(e) { toast('Erro de conexão', 'erro'); }
+            this.sugerindoPreco = false;
         },
 
         calcularHorasMensaisServico() {
