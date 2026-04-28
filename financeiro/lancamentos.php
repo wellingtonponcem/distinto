@@ -20,7 +20,7 @@ include __DIR__ . '/../includes/layout/head.php';
                 <p style="font-size:14px; color:#6b7280; margin-top:2px;">Contas a pagar e a receber</p>
             </div>
             <div style="display:flex; gap:10px;">
-                <input type="file" x-ref="ofxInput" @change="uploadOfx" style="display:none" accept=".ofx,.OFX">
+                <input type="file" x-ref="ofxInput" @change="uploadOfx($event)" style="display:none" accept=".ofx,.OFX">
                 <button class="btn-secondary" @click="$refs.ofxInput.click()" style="color:#6366f1; border-color:rgba(99,102,241,0.3);" :disabled="uploadingOfx">
                     <span x-show="!uploadingOfx"><i data-lucide="file-up" style="width:15px;height:15px;"></i> Importar OFX</span>
                     <span x-show="uploadingOfx">⏳ Lendo arquivo...</span>
@@ -669,8 +669,11 @@ function lancamentos() {
         },
 
         async uploadOfx(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            const file = e.target?.files ? e.target.files[0] : null;
+            if (!file) {
+                alert("Nenhum arquivo selecionado.");
+                return;
+            }
             const formData = new FormData();
             formData.append('arquivo', file);
             
@@ -682,17 +685,22 @@ function lancamentos() {
                     body: formData
                 });
                 
-                // Tratar erro HTML ou resposta que não é JSON
+                let resText = await r.text();
                 let res;
                 try {
-                    res = await r.json();
+                    res = JSON.parse(resText);
                 } catch (jsonErr) {
-                    toast('O servidor retornou uma resposta inválida. Tente outro arquivo.', 'erro');
+                    alert('Erro fatal do servidor. Resposta: ' + resText.substring(0, 100));
                     this.uploadingOfx = false;
                     return;
                 }
 
                 if (r.ok) {
+                    if (!res.transacoes || res.transacoes.length === 0) {
+                        alert("O arquivo não continha transações válidas.");
+                        this.uploadingOfx = false;
+                        return;
+                    }
                     this.ofxTransacoes = res.transacoes.map(t => {
                         const match = this.buscarPendentesParaOfx(t)[0];
                         return { ...t, acao_id: match ? match.id : 'novo', categoria: 'outros' };
@@ -700,13 +708,13 @@ function lancamentos() {
                     this.modalOfxAberto = true;
                     this.$nextTick(() => { if (window.lucide) lucide.createIcons(); });
                 } else {
-                    toast(res.erro || 'Erro ao processar OFX', 'erro');
+                    alert(res.erro || 'Erro desconhecido ao processar OFX');
                 }
             } catch (err) {
-                toast('Erro de conexão ao enviar OFX', 'erro');
+                alert('Erro de conexão: ' + err.message);
             }
             this.uploadingOfx = false;
-            e.target.value = ''; // Reset file input
+            if (e.target) e.target.value = ''; 
         },
 
         buscarPendentesParaOfx(txn) {
