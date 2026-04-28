@@ -31,6 +31,58 @@ function menuAtivo(string $path): string {
             </div>
         </div>
     </div>
+    
+    <?php
+    $dbSummary = Database::get();
+    $summary = $dbSummary->query("
+        SELECT 
+            SUM(CASE WHEN tipo='receber' AND status='pago' THEN valor_pago ELSE 0 END) as total_recebido,
+            SUM(CASE WHEN tipo='pagar' AND status='pago' THEN valor_pago ELSE 0 END) as total_gasto,
+            SUM(CASE WHEN tipo='receber' AND status NOT IN ('pago','cancelado') THEN (valor - valor_pago) ELSE 0 END) as total_a_receber,
+            SUM(CASE WHEN tipo='pagar' AND status NOT IN ('pago','cancelado') THEN (valor - valor_pago) ELSE 0 END) as total_a_pagar
+        FROM lancamentos
+    ")->fetch();
+
+    $totalRec = (float)($summary['total_recebido'] ?? 0);
+    $totalGas = (float)($summary['total_gasto'] ?? 0);
+    $aReceber = (float)($summary['total_a_receber'] ?? 0);
+    $aPagar   = (float)($summary['total_a_pagar'] ?? 0);
+    $balanco  = $totalRec - $totalGas;
+    ?>
+
+    <div style="padding:0 14px 16px; display:flex; flex-direction:column; gap:8px;">
+        <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:12px;">
+            <div style="font-size:9px; font-weight:800; color:#686868; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px; display:flex; align-items:center; gap:5px;">
+                <i data-lucide="activity" style="width:10px;height:10px;"></i> Resumo Geral
+            </div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                    <div style="font-size:10px; color:#969696; font-weight:600;">Recebido</div>
+                    <div style="font-size:13px; color:#10b981; font-weight:800;"><?= formatarMoeda($totalRec) ?></div>
+                </div>
+                <div>
+                    <div style="font-size:10px; color:#969696; font-weight:600;">Gasto</div>
+                    <div style="font-size:13px; color:#ef4444; font-weight:800;"><?= formatarMoeda($totalGas) ?></div>
+                </div>
+                <div>
+                    <div style="font-size:10px; color:#969696; font-weight:600;">A Receber</div>
+                    <div style="font-size:12px; color:#34d399; font-weight:600; opacity:0.8;"><?= formatarMoeda($aReceber) ?></div>
+                </div>
+                <div>
+                    <div style="font-size:10px; color:#969696; font-weight:600;">A Pagar</div>
+                    <div style="font-size:12px; color:#f87171; font-weight:600; opacity:0.8;"><?= formatarMoeda($aPagar) ?></div>
+                </div>
+            </div>
+            
+            <div style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.06);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-size:11px; color:#ffffff; font-weight:800;">Balanço Real</div>
+                    <div style="font-size:14px; color:<?= $balanco >= 0 ? '#10b981' : '#ef4444' ?>; font-weight:800;"><?= formatarMoeda($balanco) ?></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <nav style="flex:1; padding:8px 14px; overflow-y:auto;">
         <div class="nav-section">Principal</div>
