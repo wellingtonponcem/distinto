@@ -91,7 +91,6 @@ curl_setopt_array($ch, [
 
 $resposta = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
 
 if ($httpCode !== 200) {
     responderJson(['erro' => 'Erro na API da IA'], 502);

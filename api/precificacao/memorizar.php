@@ -57,7 +57,6 @@ curl_setopt_array($ch, [
 ]);
 
 $resposta = curl_exec($ch);
-curl_close($ch);
 
 $dadosIa = json_decode($resposta, true);
 $novaMemoria = $dadosIa['choices'][0]['message']['content'] ?? $memoriaAtual;
