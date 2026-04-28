@@ -115,9 +115,24 @@ document.addEventListener('alpine:init', () => {
         async carregar() {
             try {
                 const r = await fetch('<?= raizUrl('/api/sistema/usuarios.php') ?>');
-                this.lista = await r.json();
+                const resText = await r.text();
+                let res;
+                try {
+                    res = JSON.parse(resText);
+                } catch(e) {
+                    throw new Error('Erro ao processar lista: ' + resText.substring(0, 100));
+                }
+
+                if (!r.ok) {
+                    throw new Error(res.erro || 'Erro HTTP ' + r.status);
+                }
+
+                this.lista = res;
                 this.$nextTick(() => lucide.createIcons());
-            } catch(e) { toast('Erro ao carregar usuários', 'erro'); }
+            } catch(e) { 
+                console.error(e);
+                toast(e.message || 'Erro ao carregar usuários', 'erro'); 
+            }
         },
 
         abrirModal(usuario = null) {
