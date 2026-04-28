@@ -66,7 +66,7 @@ function raizUrl(string $caminho = ''): string {
         $dir    = dirname($script);
         // Remover pastas de módulo para chegar à raiz do projeto
         $partes  = array_values(array_filter(explode('/', $dir)));
-        $modulos = ['financeiro', 'precificacao', 'api', 'auth', 'setup', 'assets', 'includes', 'pdf', 'relatorios'];
+        $modulos = ['financeiro', 'precificacao', 'api', 'auth', 'sistema', 'setup', 'assets', 'includes', 'pdf', 'relatorios'];
         while (!empty($partes) && in_array(end($partes), $modulos, true)) {
             array_pop($partes);
         }
