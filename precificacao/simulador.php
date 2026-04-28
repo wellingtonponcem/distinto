@@ -92,9 +92,20 @@ $servicosJson = json_encode($servicos, JSON_UNESCAPED_UNICODE);
                     </div>
                 </div>
 
-                <div style="margin-bottom:20px;">
+                <div style="margin-bottom:16px;">
                     <label class="label">Contexto adicional</label>
-                    <textarea class="input" x-model="briefing.contexto" rows="3" placeholder="Objetivos, desafios, observações relevantes..." style="resize:vertical;"></textarea>
+                    <textarea class="input" x-model="briefing.contexto" rows="2" placeholder="Objetivos, desafios, observações relevantes..." style="resize:vertical;"></textarea>
+                </div>
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+                    <div>
+                        <label class="label">Ferramentas Extras</label>
+                        <input class="input" x-model="briefing.ferramentas_extras" placeholder="Ex: Licença extra Adobe...">
+                    </div>
+                    <div>
+                        <label class="label">Terceirização (Projeto)</label>
+                        <input class="input" x-model="briefing.terceirizacao_extra" placeholder="Ex: R$ 500 para Fotógrafo">
+                    </div>
                 </div>
 
                 <button class="btn-primary" style="width:100%; justify-content:center;" @click="simular()" :disabled="gerando || briefing.servicos.length===0">
@@ -195,7 +206,9 @@ function simulador() {
             servicos: [],
             prazo: 'mensal_recorrente',
             complexidade: 'media',
-            contexto: ''
+            contexto: '',
+            ferramentas_extras: '',
+            terceirizacao_extra: ''
         },
         gerando: false,
         resultado: null,

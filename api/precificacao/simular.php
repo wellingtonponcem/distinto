@@ -37,14 +37,22 @@ $totalCustosFixos = array_reduce($custos, function($carry, $c) {
 }, 0);
 
 // Serviços e preços mínimos (com rateio de 160h mensais)
-$servicos = $db->query("SELECT nome, horas_estimadas, custo_producao, custos_variaveis, markup FROM servicos WHERE ativo=1")->fetchAll();
+$servicos = $db->query("SELECT nome, descricao, entregaveis, ferramentas, terceirizacao, horas_estimadas, custo_producao, custos_variaveis, markup FROM servicos WHERE ativo=1")->fetchAll();
 $horasMensais = 160;
 $linhasServicos = [];
 foreach ($servicos as $s) {
     $rateio = $horasMensais > 0 ? ($s['horas_estimadas'] / $horasMensais) * $totalCustosFixos : 0;
     $custoTotal = $rateio + $s['custo_producao'] + $s['custos_variaveis'];
     $precoMin = $custoTotal * (1 + $s['markup'] / 100);
-    $linhasServicos[] = "- {$s['nome']}: {$s['horas_estimadas']}h/mês, preço mínimo R$ " . number_format($precoMin, 2, ',', '.');
+    
+    $detalhes = [];
+    if (!empty($s['descricao'])) $detalhes[] = "Desc: {$s['descricao']}";
+    if (!empty($s['entregaveis'])) $detalhes[] = "Entregáveis: {$s['entregaveis']}";
+    if (!empty($s['ferramentas'])) $detalhes[] = "Ferramentas: {$s['ferramentas']}";
+    if (!empty($s['terceirizacao'])) $detalhes[] = "Terceirização: {$s['terceirizacao']}";
+    $detalhesStr = !empty($detalhes) ? " (" . implode(' | ', $detalhes) . ")" : "";
+
+    $linhasServicos[] = "- {$s['nome']}: {$s['horas_estimadas']}h/mês, preço mínimo R$ " . number_format($precoMin, 2, ',', '.') . $detalhesStr;
 }
 
 $servicosStr = implode("\n", $linhasServicos) ?: 'Nenhum serviço cadastrado ainda.';
@@ -67,6 +75,9 @@ $complexidade  = $complexLabels[$briefing['complexidade'] ?? 'media'] ?? 'Média
 $servicosSel   = implode(', ', (array)$briefing['servicos']);
 $cliente       = !empty($briefing['cliente']) ? "Cliente: {$briefing['cliente']}\n" : '';
 $contexto      = !empty($briefing['contexto']) ? "\nContexto adicional: {$briefing['contexto']}" : '';
+$extras        = "";
+if (!empty($briefing['ferramentas_extras'])) $extras .= "\nFerramentas Extras Necessárias: {$briefing['ferramentas_extras']}";
+if (!empty($briefing['terceirizacao_extra'])) $extras .= "\nTerceirização para este projeto: {$briefing['terceirizacao_extra']}";
 
 // Montar prompt
 $prompt = <<<PROMPT
@@ -84,7 +95,7 @@ BRIEFING:
 Segmento/nicho: {$briefing['segmento']}
 Serviços desejados: {$servicosSel}
 Prazo: {$prazo}
-Complexidade: {$complexidade}{$contexto}
+Complexidade: {$complexidade}{$contexto}{$extras}
 
 REGRAS OBRIGATÓRIAS:
 1. NUNCA sugira valores abaixo do preço mínimo de cada serviço listado

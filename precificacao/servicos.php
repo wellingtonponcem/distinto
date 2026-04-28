@@ -98,8 +98,22 @@ include __DIR__ . '/../includes/layout/head.php';
                     <input class="input" x-model="form.nome" required placeholder="Ex: Gestão de Tráfego Pago">
                 </div>
                 <div style="margin-bottom:16px;">
-                    <label class="label">Descrição</label>
-                    <textarea class="input" x-model="form.descricao" rows="2" placeholder="Descreva brevemente o serviço" style="resize:vertical;"></textarea>
+                    <label class="label">Descrição Básica</label>
+                    <textarea class="input" x-model="form.descricao" rows="2" placeholder="O que é o serviço de forma resumida..." style="resize:vertical;"></textarea>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label class="label">Entregáveis (Escopo)</label>
+                    <textarea class="input" x-model="form.entregaveis" rows="3" placeholder="Ex: 4 posts semanais, 1 relatório mensal, etc..." style="resize:vertical;"></textarea>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">
+                    <div>
+                        <label class="label">Ferramentas Adicionais</label>
+                        <input class="input" x-model="form.ferramentas" placeholder="Ex: Canva Pro, RD Station...">
+                    </div>
+                    <div>
+                        <label class="label">Terceirização (Custo/O que)</label>
+                        <input class="input" x-model="form.terceirizacao" placeholder="Ex: R$ 200,00 - Designer Freelancer">
+                    </div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:16px;">
                     <div>
@@ -174,7 +188,17 @@ function servicos() {
         },
 
         abrirModal(item = null) {
-            this.form = item ? { ...item } : { nome:'', descricao:'', horas_estimadas:'', custo_producao:'', custos_variaveis:'0', markup:'30' };
+            this.form = item ? { ...item } : { 
+                nome:'', 
+                descricao:'', 
+                entregaveis: '',
+                ferramentas: '',
+                terceirizacao: '',
+                horas_estimadas:'', 
+                custo_producao:'', 
+                custos_variaveis:'0', 
+                markup:'30' 
+            };
             this.modalAberto = true;
             this.$nextTick(() => lucide.createIcons());
         },
