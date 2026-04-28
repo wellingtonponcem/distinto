@@ -12,7 +12,8 @@ $mensagens = $dados['mensagens'] ?? [];
 if (empty($mensagens)) responderJson(['erro' => 'Sem mensagens'], 400);
 
 $db = Database::get();
-$config = $db->query("SELECT memoria_ia FROM configuracao_empresa WHERE id='principal' LIMIT 1")->fetch();
+$config = $db->query("SELECT groq_api_key, memoria_ia FROM configuracao_empresa WHERE id='principal' LIMIT 1")->fetch();
+$apiKey = !empty($config['groq_api_key']) ? $config['groq_api_key'] : GROQ_API_KEY;
 $memoriaAtual = $config['memoria_ia'] ?? "";
 
 $historicoStr = "";
@@ -51,7 +52,7 @@ curl_setopt_array($ch, [
     CURLOPT_POST => true,
     CURLOPT_POSTFIELDS => $payload,
     CURLOPT_HTTPHEADER => [
-        'Authorization: Bearer ' . GROQ_API_KEY,
+        'Authorization: Bearer ' . $apiKey,
         'Content-Type: application/json'
     ]
 ]);

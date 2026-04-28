@@ -26,11 +26,12 @@ try {
     }
 } catch (Exception $e) {}
 
-$config = $db->query("SELECT memoria_ia FROM configuracao_empresa WHERE id='principal' LIMIT 1")->fetch();
+$config = $db->query("SELECT groq_api_key, memoria_ia FROM configuracao_empresa WHERE id='principal' LIMIT 1")->fetch();
 if (!$config) {
     $db->exec("INSERT IGNORE INTO configuracao_empresa (id) VALUES ('principal')");
-    $config = ['memoria_ia' => null];
+    $config = ['groq_api_key' => null, 'memoria_ia' => null];
 }
+$apiKey = !empty($config['groq_api_key']) ? $config['groq_api_key'] : GROQ_API_KEY;
 $memoriaAgencia = $config['memoria_ia'] ?? "Ainda não há fatos específicos memorizados sobre equipamentos ou processos.";
 
 $custos = $db->query("SELECT nome, valor, recorrencia FROM custos_fixos WHERE ativo=1")->fetchAll();
@@ -88,7 +89,7 @@ curl_setopt_array($ch, [
     CURLOPT_POST => true,
     CURLOPT_POSTFIELDS => $payload,
     CURLOPT_HTTPHEADER => [
-        'Authorization: Bearer ' . GROQ_API_KEY,
+        'Authorization: Bearer ' . $apiKey,
         'Content-Type: application/json'
     ]
 ]);
