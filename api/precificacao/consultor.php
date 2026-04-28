@@ -17,8 +17,18 @@ if (empty($mensagens)) {
     responderJson(['erro' => 'Histórico de mensagens vazio'], 400);
 }
 
-// Buscar contexto financeiro (Custos Fixos)
-$db = Database::get();
+// Migração e Busca de Memória
+try {
+    $db = Database::get();
+    $stmt = $db->query("SHOW COLUMNS FROM configuracao_empresa LIKE 'memoria_ia'");
+    if (!$stmt->fetch()) {
+        $db->exec("ALTER TABLE configuracao_empresa ADD COLUMN memoria_ia LONGTEXT NULL");
+    }
+} catch (Exception $e) {}
+
+$config = $db->query("SELECT memoria_ia FROM configuracao_empresa WHERE id='principal' LIMIT 1")->fetch();
+$memoriaAgencia = $config['memoria_ia'] ?? "Ainda não há fatos específicos memorizados sobre equipamentos ou processos.";
+
 $custos = $db->query("SELECT nome, valor, recorrencia FROM custos_fixos WHERE ativo=1")->fetchAll();
 $totalCustosFixos = array_reduce($custos, function($carry, $c) {
     return $carry + ($c['recorrencia'] === 'anual' ? $c['valor'] / 12 : $c['valor']);
@@ -37,6 +47,9 @@ CONTEXTO FINANCEIRO DA AGÊNCIA:
 - Custo Fixo Mensal Total: R$ {$totalCustosFixos}
 - Detalhes dos custos:
 {$custosStr}
+
+FATOS E RECURSOS MEMORIZADOS (Use isso para não perguntar novamente):
+{$memoriaAgencia}
 
 REGRAS DA CONVERSA:
 1. Comece sendo cordial e pergunte qual serviço ele deseja precificar hoje.
@@ -85,4 +98,7 @@ if ($httpCode !== 200) {
 $dadosIa = json_decode($resposta, true);
 $textoIa = $dadosIa['choices'][0]['message']['content'] ?? 'Desculpe, tive um problema ao processar sua resposta.';
 
-responderJson(['resposta' => $textoIa]);
+responderJson([
+    'resposta' => $textoIa,
+    'memoria' => $memoriaAgencia
+]);

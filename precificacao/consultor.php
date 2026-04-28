@@ -77,14 +77,21 @@ require_once __DIR__ . '/../includes/layout/head.php';
                 <h1 class="page-title">Consultor de Precificação IA</h1>
                 <p class="page-subtitle">Converse com a IA para definir o preço ideal de serviços complexos.</p>
             </div>
-            <button @click="reiniciar" class="btn-secondary">
-                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                Nova Consulta
-            </button>
+            <div style="display:flex; gap:10px;">
+                <button @click="memorizar" class="btn-secondary" :disabled="memorizando || mensagens.length < 3">
+                    <i data-lucide="brain" class="w-4 h-4"></i>
+                    <span x-text="memorizando ? 'Memorizando...' : 'Memorizar Fatos'"></span>
+                </button>
+                <button @click="reiniciar" class="btn-secondary">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    Nova Consulta
+                </button>
+            </div>
         </div>
 
-        <div class="chat-container">
-            <div class="chat-messages" id="chat-box">
+        <div style="display:grid; grid-template-columns: 1fr 300px; gap:20px; flex:1;">
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-box">
                 <template x-for="(msg, index) in mensagens" :key="index">
                     <div :class="'message ' + (msg.role === 'assistant' ? 'message-ia' : 'message-user')">
                         <div class="markdown-content" x-html="renderMarkdown(msg.content)"></div>
@@ -113,6 +120,18 @@ require_once __DIR__ . '/../includes/layout/head.php';
                 </button>
             </form>
         </div>
+
+        <aside class="flex flex-col gap-4">
+            <div class="card p-4">
+                <h3 class="text-sm font-bold mb-3 flex items-center gap-2">
+                    <i data-lucide="brain" class="w-4 h-4 text-purple-500"></i>
+                    Fatos Memorizados
+                </h3>
+                <div class="text-[11px] text-gray-400 whitespace-pre-wrap leading-relaxed bg-black/20 p-3 rounded-lg border border-white/5" x-text="memoria || 'A IA ainda não memorizou fatos específicos.'"></div>
+                <p class="text-[10px] text-gray-500 mt-2">Clique em 'Memorizar' para salvar informações desta conversa para o futuro.</p>
+            </div>
+        </aside>
+        </div>
     </main>
 </div>
 
@@ -125,6 +144,40 @@ document.addEventListener('alpine:init', () => {
         ],
         input: '',
         carregando: false,
+        memorizando: false,
+        memoria: '',
+
+        async init() {
+            // Carregar memória inicial
+            try {
+                const r = await fetch('<?= raizUrl('/api/precificacao/consultor.php') ?>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mensagens: [{role:'user', content:'Olá'}] })
+                });
+                const res = await r.json();
+                if (res.memoria) this.memoria = res.memoria;
+            } catch(e) {}
+        },
+
+        async memorizar() {
+            this.memorizando = true;
+            try {
+                const r = await fetch('<?= raizUrl('/api/precificacao/memorizar.php') ?>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mensagens: this.mensagens })
+                });
+                const res = await r.json();
+                if (res.ok) {
+                    this.memoria = res.memoria;
+                    toast('Aprendizados memorizados com sucesso!', 'sucesso');
+                }
+            } catch(e) {
+                toast('Erro ao memorizar', 'erro');
+            }
+            this.memorizando = false;
+        },
 
         renderMarkdown(content) {
             return marked.parse(content);
