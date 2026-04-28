@@ -27,6 +27,10 @@ try {
 } catch (Exception $e) {}
 
 $config = $db->query("SELECT memoria_ia FROM configuracao_empresa WHERE id='principal' LIMIT 1")->fetch();
+if (!$config) {
+    $db->exec("INSERT IGNORE INTO configuracao_empresa (id) VALUES ('principal')");
+    $config = ['memoria_ia' => null];
+}
 $memoriaAgencia = $config['memoria_ia'] ?? "Ainda não há fatos específicos memorizados sobre equipamentos ou processos.";
 
 $custos = $db->query("SELECT nome, valor, recorrencia FROM custos_fixos WHERE ativo=1")->fetchAll();
@@ -93,7 +97,9 @@ $resposta = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
 if ($httpCode !== 200) {
-    responderJson(['erro' => 'Erro na API da IA'], 502);
+    $errRes = json_decode($resposta, true);
+    $msg = $errRes['error']['message'] ?? 'Erro desconhecido na API Groq';
+    responderJson(['erro' => 'Erro na IA: ' . $msg], 502);
 }
 
 $dadosIa = json_decode($resposta, true);
