@@ -36,24 +36,40 @@ include __DIR__ . '/../includes/layout/head.php';
                 <button @click="filtros.tipo='receber'" :class="filtros.tipo==='receber' ? 'btn-primary' : 'btn-secondary'" style="padding:6px 14px; font-size:13px;">A Receber</button>
                 <button @click="filtros.tipo='pagar'" :class="filtros.tipo==='pagar' ? 'btn-primary' : 'btn-secondary'" style="padding:6px 14px; font-size:13px;">A Pagar</button>
             </div>
-            <select class="select" x-model="filtros.status" style="width:auto; flex:1; min-width:140px;">
-                <option value="">Todos os status</option>
-                <option value="pendente">Pendente</option>
-                <option value="pago_parcial">Pago Parcial</option>
-                <option value="pago">Pago</option>
-                <option value="atrasado">Atrasado</option>
-                <option value="cancelado">Cancelado</option>
-            </select>
-            <div style="display:flex; gap:6px; align-items:center;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap; width:100%;">
+                <input class="input" type="text" x-model="filtros.busca" placeholder="Buscar por descrição ou cliente..." style="flex:1; min-width:200px;">
+                <select class="select" x-model="filtros.categoria" style="width:auto; min-width:140px;">
+                    <option value="">Todas as categorias</option>
+                    <option value="servicos">Serviços</option>
+                    <option value="produtos">Produtos</option>
+                    <option value="aluguel">Aluguel</option>
+                    <option value="impostos">Impostos</option>
+                    <option value="folha">Folha</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="outros">Outros</option>
+                </select>
+                <select class="select" x-model="filtros.status" style="width:auto; min-width:140px;">
+                    <option value="">Todos os status</option>
+                    <option value="pendente">Pendente</option>
+                    <option value="pago_parcial">Pago Parcial</option>
+                    <option value="pago">Pago</option>
+                    <option value="atrasado">Atrasado</option>
+                    <option value="cancelado">Cancelado</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; width:100%;">
+                <span style="font-size:13px; color:#6b7280; margin-right:4px;">Período:</span>
                 <input class="input" type="date" x-model="filtros.data_inicio" style="width:auto;">
                 <span style="color:#6b7280;">até</span>
                 <input class="input" type="date" x-model="filtros.data_fim" style="width:auto;">
-            </div>
-            <div style="display:flex; gap:6px;">
-                <button class="btn-secondary" @click="setPeriodo('hoje')" style="padding:6px 10px; font-size:12px;">Dia</button>
-                <button class="btn-secondary" @click="setPeriodo('semana')" style="padding:6px 10px; font-size:12px;">Sem</button>
-                <button class="btn-secondary" @click="setPeriodo('mes')" style="padding:6px 10px; font-size:12px;">Mês</button>
-                <button class="btn-secondary" @click="setPeriodo('ano')" style="padding:6px 10px; font-size:12px;">Ano</button>
+                
+                <div style="display:flex; gap:6px; margin-left:auto;">
+                    <button class="btn-secondary" @click="setPeriodo('hoje')" style="padding:6px 10px; font-size:12px;">Dia</button>
+                    <button class="btn-secondary" @click="setPeriodo('semana')" style="padding:6px 10px; font-size:12px;">Sem</button>
+                    <button class="btn-secondary" @click="setPeriodo('mes')" style="padding:6px 10px; font-size:12px;">Mês</button>
+                    <button class="btn-secondary" @click="setPeriodo('ano')" style="padding:6px 10px; font-size:12px;">Ano</button>
+                    <button class="btn-secondary" @click="filtros.data_inicio=''; filtros.data_fim=''" style="padding:6px 10px; font-size:12px;">Tudo</button>
+                </div>
             </div>
         </div>
 
@@ -232,8 +248,8 @@ include __DIR__ . '/../includes/layout/head.php';
                     <textarea class="input" x-model="form.observacao" rows="2" placeholder="Opcional" style="resize:vertical;"></textarea>
                 </div>
 
-                <!-- Checkbox custo fixo — só para contas a pagar novas -->
-                <div x-show="!form.id && form.tipo === 'pagar'" style="background:#f7f7f7; border:1px solid #e5e5e5; border-radius:10px; padding:14px 16px; margin-bottom:20px;">
+                <!-- Checkbox custo fixo — para contas a pagar -->
+                <div x-show="form.tipo === 'pagar' && !form.custo_fixo_id" style="background:#f7f7f7; border:1px solid #e5e5e5; border-radius:10px; padding:14px 16px; margin-bottom:20px;">
                     <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
                         <input type="checkbox" x-model="form.e_custo_fixo" style="width:16px;height:16px;accent-color:#111111;">
                         <span style="font-size:13px; color:#c4b5fd; font-weight:500;">Salvar também como Custo Fixo</span>
@@ -294,7 +310,7 @@ function lancamentos() {
         modalBaixaAberto: false,
         lancamentoBaixa: null,
         valorBaixa: '',
-        filtros: { tipo: '', status: '', data_inicio: '', data_fim: '' },
+        filtros: { tipo: '', status: '', data_inicio: '', data_fim: '', busca: '', categoria: '' },
         selecionados: [],
         form: {},
         categoriaCustom: '',
@@ -316,8 +332,15 @@ function lancamentos() {
             return this.lista.filter(l => {
                 if (this.filtros.tipo   && l.tipo !== this.filtros.tipo) return false;
                 if (this.filtros.status && l.status !== this.filtros.status) return false;
+                if (this.filtros.categoria && l.categoria !== this.filtros.categoria) return false;
                 if (this.filtros.data_inicio && l.vencimento < this.filtros.data_inicio) return false;
                 if (this.filtros.data_fim && l.vencimento > this.filtros.data_fim) return false;
+                if (this.filtros.busca) {
+                    const termo = this.filtros.busca.toLowerCase();
+                    const matchDesc = (l.descricao || '').toLowerCase().includes(termo);
+                    const matchCliFor = (l.cliente_fornecedor || '').toLowerCase().includes(termo);
+                    if (!matchDesc && !matchCliFor) return false;
+                }
                 return true;
             });
         },

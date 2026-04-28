@@ -44,13 +44,26 @@ try {
         $d = lerCorpo();
         if (empty($d['id'])) responderJson(['erro' => 'ID obrigatório'], 422);
         validarLancamento($d);
-        $stmt = $db->prepare('UPDATE lancamentos SET tipo=?,descricao=?,valor=?,categoria=?,cliente_fornecedor=?,vencimento=?,modalidade=?,forma_pagamento=?,observacao=? WHERE id=?');
-        $stmt->execute([
+
+        if (($d['tipo'] ?? '') === 'pagar' && !empty($d['e_custo_fixo']) && empty($d['custo_fixo_id'])) {
+            $d['custo_fixo_id'] = criarCustoFixoFromLancamento($db, $d);
+        }
+
+        $sets = ['tipo=?','descricao=?','valor=?','categoria=?','cliente_fornecedor=?','vencimento=?','modalidade=?','forma_pagamento=?','observacao=?'];
+        $params = [
             $d['tipo'], $d['descricao'], $d['valor'], $d['categoria'] ?? 'outros',
             empty($d['cliente_fornecedor']) ? null : $d['cliente_fornecedor'], $d['vencimento'],
             $d['modalidade'] ?? 'avista', empty($d['forma_pagamento']) ? null : $d['forma_pagamento'],
-            empty($d['observacao']) ? null : $d['observacao'], $d['id']
-        ]);
+            empty($d['observacao']) ? null : $d['observacao']
+        ];
+        if (tabelaTemColuna($db, 'lancamentos', 'custo_fixo_id')) {
+            $sets[] = 'custo_fixo_id=?';
+            $params[] = empty($d['custo_fixo_id']) ? null : $d['custo_fixo_id'];
+        }
+        $params[] = $d['id'];
+        
+        $stmt = $db->prepare('UPDATE lancamentos SET ' . implode(',', $sets) . ' WHERE id=?');
+        $stmt->execute($params);
         responderJson(['ok' => true]);
 
     case 'DELETE':
