@@ -25,12 +25,15 @@ $queryResumo = $db->prepare("
 $queryResumo->execute([$mesInicio, $mesFim, $mesInicio, $mesFim, $mesInicio, $mesFim, $mesInicio, $mesFim]);
 $resumo = $queryResumo->fetch();
 
-$saldoAtual = ($resumo['total_recebido'] ?? 0) - ($resumo['total_pago'] ?? 0);
+$stmtSaldos = $db->query("SELECT SUM(saldo_inicial) FROM contas_bancarias WHERE ativo=1");
+$saldoInicialTotal = (float)$stmtSaldos->fetchColumn() ?: 0;
+
+$saldoAtual = $saldoInicialTotal + ($resumo['total_recebido'] ?? 0) - ($resumo['total_pago'] ?? 0);
 $receitasMes = $resumo['receitas_mes'] ?? 0;
 $despesasMes = $resumo['despesas_mes'] ?? 0;
 $receberMes = $resumo['receber_mes'] ?? 0;
 $pagarMes = $resumo['pagar_mes'] ?? 0;
-$resultadoPrev = ($receitasMes + $receberMes) - ($despesasMes + $pagarMes);
+$resultadoPrev = $saldoAtual + $receberMes - $pagarMes;
 
 // Buscar contagem de itens para os KPIs
 $stmtQtdRec = $db->prepare("SELECT COUNT(*) FROM lancamentos WHERE tipo='receber' AND vencimento BETWEEN ? AND ? AND status NOT IN ('pago','cancelado')");
